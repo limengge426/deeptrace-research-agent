@@ -50,6 +50,7 @@ def estimate_tokens(*texts: str) -> int:
 
 class OpenAICompatLLM:
     RETRYABLE = {408, 409, 429, 500, 502, 503, 504}
+    _sleep = staticmethod(asyncio.sleep)  # backoff; overridable in tests
 
     def __init__(
         self,
@@ -109,7 +110,7 @@ class OpenAICompatLLM:
                     return Completion(text=text, tokens=int(tokens))
                 if resp.status_code not in self.RETRYABLE or attempt == self.max_retries:
                     raise LLMError(f"{purpose}: HTTP {resp.status_code}: {resp.text[:300]}")
-            await asyncio.sleep(min(2**attempt, 20) + random.random())
+            await self._sleep(min(2**attempt, 20) + random.random())
         raise LLMError(f"{purpose}: retries exhausted")
 
     async def aclose(self) -> None:

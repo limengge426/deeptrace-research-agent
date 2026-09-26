@@ -1,4 +1,11 @@
-"""SQLite persistence: run checkpoints, an append-only event log and a tool-call cache."""
+"""SQLite persistence: run checkpoints, leases, an append-only event log and a tool-call cache.
+
+Several worker processes may share one database. A run is only driven by the
+worker holding its lease, and every checkpoint carries the lease's fencing
+token: if a worker stalls long enough for its lease to expire and another
+worker takes the run over, the stale worker's next write is rejected instead of
+silently overwriting newer progress.
+"""
 
 from __future__ import annotations
 
@@ -7,7 +14,6 @@ import json
 import sqlite3
 import time
 import uuid
-from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -31,6 +37,12 @@ CREATE TABLE IF NOT EXISTS events (
     payload TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS events_by_run ON events(run_id, id);
+CREATE TABLE IF NOT EXISTS leases (
+    run_id TEXT PRIMARY KEY REFERENCES runs(id),
+    owner TEXT NOT NULL,
+    token INTEGER NOT NULL,
+    expires_at REAL NOT NULL
+);
 CREATE TABLE IF NOT EXISTS tool_cache (
     key TEXT PRIMARY KEY,
     run_id TEXT NOT NULL,
@@ -48,8 +60,20 @@ class RunRecord:
     updated_at: float
 
 
+class LeaseLost(RuntimeError):
+    """This worker no longer holds the run's lease; another worker owns it now."""
+
+
+@dataclass(frozen=True)
+class Lease:
+    run_id: str
+    owner: str
+    token: int
+
+
 @dataclass
 class Event:
+    id: int
     ts: float
     kind: str
     payload: dict[str, Any]
@@ -60,7 +84,9 @@ class RunStore:
         self.path = str(path)
         if self.path != ":memory:":
             Path(self.path).parent.mkdir(parents=True, exist_ok=True)
-        self._conn = sqlite3.connect(self.path)
+        # Autocommit mode: single statements commit on their own, and multi-step
+        # operations open an explicit BEGIN IMMEDIATE transaction.
+        self._conn = sqlite3.connect(self.path, timeout=30, isolation_level=None, check_same_thread=False)
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.executescript(_SCHEMA)
 
@@ -72,19 +98,30 @@ class RunStore:
     def create_run(self, state: RunState) -> str:
         run_id = uuid.uuid4().hex[:10]
         now = time.time()
-        with self._conn:
-            self._conn.execute(
-                "INSERT INTO runs VALUES (?, ?, ?, ?, ?, ?)",
-                (run_id, state.question, state.stage, now, now, json.dumps(state.to_dict())),
-            )
+        self._conn.execute(
+            "INSERT INTO runs VALUES (?, ?, ?, ?, ?, ?)",
+            (run_id, state.question, state.stage, now, now, json.dumps(state.to_dict())),
+        )
         return run_id
 
-    def checkpoint(self, run_id: str, state: RunState, *, status: str) -> None:
-        with self._conn:
-            self._conn.execute(
-                "UPDATE runs SET status = ?, updated_at = ?, state = ? WHERE id = ?",
-                (status, time.time(), json.dumps(state.to_dict()), run_id),
-            )
+    def checkpoint(self, run_id: str, state: RunState, *, status: str, lease: Lease | None = None) -> None:
+        params = (status, time.time(), json.dumps(state.to_dict()), run_id)
+        if lease is None:
+            self._conn.execute("UPDATE runs SET status = ?, updated_at = ?, state = ? WHERE id = ?", params)
+            return
+        cur = self._conn.execute(
+            "UPDATE runs SET status = ?, updated_at = ?, state = ? WHERE id = ? AND EXISTS "
+            "(SELECT 1 FROM leases WHERE run_id = ? AND owner = ? AND token = ?)",
+            (*params, run_id, lease.owner, lease.token),
+        )
+        if cur.rowcount == 0:
+            raise LeaseLost(f"lease on run {run_id} (token {lease.token}) was taken over")
+
+    def requeue(self, run_id: str) -> None:
+        """Make a halted run claimable again by clearing its error."""
+        state = self.load(run_id)
+        state.error = None
+        self.checkpoint(run_id, state, status=state.stage)
 
     def load(self, run_id: str) -> RunState:
         row = self._conn.execute("SELECT state FROM runs WHERE id = ?", (run_id,)).fetchone()
@@ -99,20 +136,97 @@ class RunStore:
         ).fetchall()
         return [RunRecord(*row) for row in rows]
 
+    def status(self, run_id: str) -> str:
+        row = self._conn.execute("SELECT status FROM runs WHERE id = ?", (run_id,)).fetchone()
+        if row is None:
+            raise KeyError(f"no run with id {run_id!r}")
+        return row[0]
+
+    # -- leases -----------------------------------------------------------
+
+    def acquire(self, run_id: str, owner: str, ttl: float) -> Lease | None:
+        """Take the run's lease if it is free, expired, or already ours.
+
+        Taking over from another owner bumps the fencing token, which
+        invalidates any checkpoint the previous owner might still try to write.
+        """
+        now = time.time()
+        self._conn.execute("BEGIN IMMEDIATE")
+        try:
+            row = self._conn.execute(
+                "SELECT owner, token, expires_at FROM leases WHERE run_id = ?", (run_id,)
+            ).fetchone()
+            if row is None:
+                token = 1
+                self._conn.execute("INSERT INTO leases VALUES (?, ?, ?, ?)", (run_id, owner, token, now + ttl))
+            elif row[0] == owner and row[2] > now:
+                token = row[1]
+                self._conn.execute("UPDATE leases SET expires_at = ? WHERE run_id = ?", (now + ttl, run_id))
+            elif row[2] <= now:
+                token = row[1] + 1
+                self._conn.execute(
+                    "UPDATE leases SET owner = ?, token = ?, expires_at = ? WHERE run_id = ?",
+                    (owner, token, now + ttl, run_id),
+                )
+            else:
+                self._conn.execute("ROLLBACK")
+                return None
+            self._conn.execute("COMMIT")
+        except BaseException:
+            self._conn.execute("ROLLBACK")
+            raise
+        return Lease(run_id, owner, token)
+
+    def lease_holder(self, run_id: str) -> tuple[str, float] | None:
+        """(owner, seconds until expiry) of a live lease, or None if the run is free."""
+        row = self._conn.execute("SELECT owner, expires_at FROM leases WHERE run_id = ?", (run_id,)).fetchone()
+        if row is None or row[1] <= time.time():
+            return None
+        return row[0], row[1] - time.time()
+
+    def renew(self, lease: Lease, ttl: float) -> bool:
+        cur = self._conn.execute(
+            "UPDATE leases SET expires_at = ? WHERE run_id = ? AND owner = ? AND token = ?",
+            (time.time() + ttl, lease.run_id, lease.owner, lease.token),
+        )
+        return cur.rowcount == 1
+
+    def release(self, lease: Lease) -> None:
+        self._conn.execute(
+            "UPDATE leases SET expires_at = 0 WHERE run_id = ? AND owner = ? AND token = ?",
+            (lease.run_id, lease.owner, lease.token),
+        )
+
+    def claimable(self, limit: int = 10) -> list[str]:
+        """Unfinished, unpaused runs that nobody currently holds a live lease on."""
+        rows = self._conn.execute(
+            "SELECT r.id FROM runs r LEFT JOIN leases l ON l.run_id = r.id "
+            "WHERE r.status NOT IN ('done', 'failed', 'halted') AND (l.run_id IS NULL OR l.expires_at <= ?) "
+            "ORDER BY r.created_at LIMIT ?",
+            (time.time(), limit),
+        ).fetchall()
+        return [row[0] for row in rows]
+
+    def pending(self) -> list[str]:
+        """Runs that are neither finished nor paused, whether or not someone holds them."""
+        rows = self._conn.execute(
+            "SELECT id FROM runs WHERE status NOT IN ('done', 'failed', 'halted') ORDER BY created_at"
+        ).fetchall()
+        return [row[0] for row in rows]
+
     # -- events -----------------------------------------------------------
 
     def log(self, run_id: str, kind: str, **payload: Any) -> None:
-        with self._conn:
-            self._conn.execute(
-                "INSERT INTO events (run_id, ts, kind, payload) VALUES (?, ?, ?, ?)",
-                (run_id, time.time(), kind, json.dumps(payload, ensure_ascii=False)),
-            )
+        self._conn.execute(
+            "INSERT INTO events (run_id, ts, kind, payload) VALUES (?, ?, ?, ?)",
+            (run_id, time.time(), kind, json.dumps(payload, ensure_ascii=False)),
+        )
 
-    def events(self, run_id: str) -> list[Event]:
+    def events(self, run_id: str, *, after: int = 0) -> list[Event]:
         rows = self._conn.execute(
-            "SELECT ts, kind, payload FROM events WHERE run_id = ? ORDER BY id", (run_id,)
+            "SELECT id, ts, kind, payload FROM events WHERE run_id = ? AND id > ? ORDER BY id", (run_id, after)
         ).fetchall()
-        return [Event(ts, kind, json.loads(payload)) for ts, kind, payload in rows]
+        return [Event(eid, ts, kind, json.loads(payload)) for eid, ts, kind, payload in rows]
 
     # -- idempotent tool calls ---------------------------------------------
 
@@ -126,7 +240,4 @@ class RunStore:
         return json.loads(row[0]) if row else None
 
     def cache(self, key: str, run_id: str, result: Any) -> None:
-        with self._conn:
-            self._conn.execute(
-                "INSERT OR REPLACE INTO tool_cache VALUES (?, ?, ?)", (key, run_id, json.dumps(result))
-            )
+        self._conn.execute("INSERT OR REPLACE INTO tool_cache VALUES (?, ?, ?)", (key, run_id, json.dumps(result)))

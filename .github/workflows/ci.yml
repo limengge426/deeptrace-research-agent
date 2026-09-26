@@ -17,3 +17,48 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: pip install -e ".[dev]"
       - run: pytest -q
+
+  deploy-drill:
+    # API + two worker processes; one worker is SIGKILLed mid-run.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: bash evals/deploy_drill.sh
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Validate compose file
+        run: cp .env.example .env && docker compose config -q
+      - name: Build image
+        run: docker build -t researchloop .
+      - name: Run a research job inside the container against a mock LLM
+        run: |
+          python evals/mock_llm_server.py --host 0.0.0.0 --port 9100 &
+          docker run -d --name rl --network host \
+            -e RESEARCHLOOP_API_KEY=mock \
+            -e RESEARCHLOOP_BASE_URL=http://127.0.0.1:9100/v1 \
+            -e RESEARCHLOOP_CORPUS=/app/examples/corpus \
+            researchloop
+          for i in $(seq 1 30); do curl -sf localhost:8000/health && break; sleep 1; done
+          id=$(curl -sf -X POST localhost:8000/runs -H 'content-type: application/json' \
+                 -d '{"question": "Are heat pumps worth it in cold climates?"}' | python -c 'import sys,json; print(json.load(sys.stdin)["id"])')
+          for i in $(seq 1 60); do
+            status=$(curl -sf localhost:8000/runs/$id | python -c 'import sys,json; print(json.load(sys.stdin)["status"])')
+            echo "status: $status"
+            [ "$status" = done ] && break
+            sleep 1
+          done
+          curl -sf localhost:8000/runs/$id/report | tee report.md | head -20
+          grep -q "## Sources" report.md
+      - if: failure()
+        run: docker logs rl

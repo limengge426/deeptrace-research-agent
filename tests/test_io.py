@@ -30,7 +30,7 @@ def no_sleep(monkeypatch):
     async def instant(_):
         return None
 
-    monkeypatch.setattr("researchloop.llm.asyncio.sleep", instant)
+    monkeypatch.setattr(OpenAICompatLLM, "_sleep", staticmethod(instant))
 
 
 def test_llm_retries_rate_limits_then_succeeds():

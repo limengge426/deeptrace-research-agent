@@ -1,7 +1,7 @@
 # Crash-recovery benchmark
 
 Uncrashed baseline: 12 LLM calls, 8 searches, 12 checkpoints (with 1 report repair and 1 replan).
-Each crash is a SIGKILL of the worker process; recovery runs in a fresh process.
+Each crash is a SIGKILL of the worker process; recovery runs in a fresh process that waits for the dead process's lease to expire (TTL 0.3s) and takes the run over.
 
 ## By injection point
 
@@ -23,4 +23,4 @@ Each crash is a SIGKILL of the worker process; recovery runs in a fresh process.
 | report | 6 | 6/6 | 6/6 | 0 (0 total) | 0.5 |
 | verify | 4 | 4/4 | 4/4 | 0 (0 total) | 0.2 |
 
-_71 scenarios in 15.1s._
+_71 scenarios in 61.5s._

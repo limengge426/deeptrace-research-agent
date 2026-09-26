@@ -8,7 +8,9 @@ scripted LLM and search provider, and SIGKILLs itself at one injection point:
   search-post:k  right after the k-th search ran, before its result is cached
   checkpoint:k   right before the k-th checkpoint write
 
-Fresh worker processes then resume the run until it finishes. Every search that
+Fresh worker processes then resume the run until it finishes. The killed
+process never releases its lease, so each recovery first waits for that lease
+to expire (TTL 0.3 s here) and then takes the run over with a new fencing token. Every search that
 actually executes is appended (and fsync'ed) to a side-effect log, so duplicate
 side effects can be counted across processes.
 
@@ -40,11 +42,14 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / "src"), str(ROOT)]
 
 from researchloop import ResearchRuntime, RunStore  # noqa: E402
+from researchloop.runtime import RunLocked  # noqa: E402
 from researchloop.store import RunStore as _Store  # noqa: E402
 from tests import fakes  # noqa: E402
 
 QUESTION = "Are heat pumps worth it in cold climates?"
 KINDS = ("llm", "search", "search-post", "checkpoint")
+LEASE_TTL = 0.3
+EXIT_LOCKED = 3
 
 
 # -- worker (runs in a child process) ---------------------------------------
@@ -111,11 +116,11 @@ class InjectingSearch(fakes.FakeSearch):
 class InjectingStore(_Store):
     injector: Injector
 
-    def checkpoint(self, run_id, state, *, status):
+    def checkpoint(self, run_id, state, *, status, lease=None):
         # Label with the stage recorded on disk, i.e. the stage whose work was just completed.
         row = self._conn.execute("SELECT status FROM runs WHERE id = ?", (run_id,)).fetchone()
         self.injector.hit("checkpoint", row[0] if row else state.stage)
-        super().checkpoint(run_id, state, status=status)
+        super().checkpoint(run_id, state, status=status, lease=lease)
 
 
 def worker(args: argparse.Namespace) -> None:
@@ -124,10 +129,15 @@ def worker(args: argparse.Namespace) -> None:
     store = InjectingStore(work / "runs.db")
     store.injector = injector
     llm = InjectingLLM(injector)
-    runtime = ResearchRuntime(llm, InjectingSearch(injector, work / "side_effects.jsonl"), store)
+    runtime = ResearchRuntime(
+        llm, InjectingSearch(injector, work / "side_effects.jsonl"), store, lease_ttl=LEASE_TTL
+    )
 
     runs = store.runs()
-    result = asyncio.run(runtime.resume(runs[0].id) if runs else runtime.start(QUESTION))
+    try:
+        result = asyncio.run(runtime.resume(runs[0].id) if runs else runtime.start(QUESTION))
+    except RunLocked:
+        raise SystemExit(EXIT_LOCKED)  # the killed process's lease has not expired yet
     _append(
         work / "trace.jsonl",
         {
@@ -159,11 +169,17 @@ def run_scenario(kills: list[str | None], max_processes: int = 8) -> dict:
     """Run one process per entry in ``kills`` (then clean resumes) until the run finishes."""
     with tempfile.TemporaryDirectory() as tmp:
         work = Path(tmp)
-        processes, crashes = 0, 0
+        processes, crashes, lock_waits = 0, 0, 0
         plan = list(kills)
         while processes < max_processes:
             kill_at = plan.pop(0) if plan else None
             code = _spawn(work, kill_at)
+            if code == EXIT_LOCKED:
+                lock_waits += 1
+                if kill_at:
+                    plan.insert(0, kill_at)
+                time.sleep(LEASE_TTL / 3)
+                continue
             processes += 1
             if code == -signal.SIGKILL:
                 crashes += 1
@@ -178,6 +194,7 @@ def run_scenario(kills: list[str | None], max_processes: int = 8) -> dict:
         return {
             "kills": [t for t in trace if "killed_at" in t],
             "crashes": crashes,
+            "lock_waits": lock_waits,
             "processes": processes,
             "status": finished[-1]["finished"] if finished else None,
             "report_sha": finished[-1]["report_sha"] if finished else None,
@@ -194,7 +211,9 @@ def _count_sites() -> Counter[str]:
         injector = Injector(None, work / "trace.jsonl")
         store = InjectingStore(work / "runs.db")
         store.injector = injector
-        runtime = ResearchRuntime(InjectingLLM(injector), InjectingSearch(injector, work / "se.jsonl"), store)
+        runtime = ResearchRuntime(
+            InjectingLLM(injector), InjectingSearch(injector, work / "se.jsonl"), store, lease_ttl=LEASE_TTL
+        )
         asyncio.run(runtime.start(QUESTION))
         store.close()
         return injector.counts
@@ -278,7 +297,8 @@ def summarize(results: dict) -> str:
         "",
         f"Uncrashed baseline: {base['llm_calls']} LLM calls, {base['searches']} searches, "
         f"{results['sites']['checkpoint']} checkpoints (with 1 report repair and 1 replan).",
-        "Each crash is a SIGKILL of the worker process; recovery runs in a fresh process.",
+        "Each crash is a SIGKILL of the worker process; recovery runs in a fresh process that waits for the "
+        f"dead process's lease to expire (TTL {LEASE_TTL}s) and takes the run over.",
         "",
         "## By injection point",
         "",

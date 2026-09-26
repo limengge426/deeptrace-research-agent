@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "researchloop"
-version = "0.1.0"
+version = "0.2.0"
 description = "An evidence-first, resumable research agent: plan, research in parallel, write a cited report, verify, repeat."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -13,7 +13,8 @@ authors = [{ name = "Limeng Ge" }]
 dependencies = ["httpx>=0.27"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+server = ["fastapi>=0.110", "uvicorn>=0.29"]
+dev = ["pytest>=8", "fastapi>=0.110", "uvicorn>=0.29"]
 
 [project.scripts]
 researchloop = "researchloop.cli:main"

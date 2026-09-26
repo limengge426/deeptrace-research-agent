@@ -1,23 +1,25 @@
-"""Command-line interface: ``researchloop run | resume | show | list``."""
+"""Command-line interface: ``researchloop run | resume | show | list | worker | serve``."""
 
 from __future__ import annotations
 
 import argparse
 import asyncio
+import os
 import sys
 import time
 from pathlib import Path
 
 from .budget import Budget
 from .llm import LLMError, OpenAICompatLLM
-from .runtime import ResearchRuntime, RunResult
+from .runtime import ResearchRuntime, RunLocked, RunResult
 from .search import LocalCorpusSearch, SearchProvider, TavilySearch
 from .store import RunStore
 
 
 def _search_from_args(args: argparse.Namespace) -> SearchProvider:
-    if args.corpus:
-        return LocalCorpusSearch(args.corpus)
+    corpus = args.corpus or (None if args.web else os.getenv("RESEARCHLOOP_CORPUS"))
+    if corpus:
+        return LocalCorpusSearch(corpus)
     return TavilySearch()
 
 
@@ -73,9 +75,11 @@ def _list(store: RunStore) -> int:
 def build_parser() -> argparse.ArgumentParser:
     # --db is accepted both before and after the subcommand.
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("--db", default=argparse.SUPPRESS, help="SQLite file for runs (default: researchloop.db)")
+    common.add_argument(
+        "--db", default=argparse.SUPPRESS, help="SQLite file for runs (default: $RESEARCHLOOP_DB or researchloop.db)"
+    )
     parser = argparse.ArgumentParser(prog="researchloop", description="Evidence-first research agent.", parents=[common])
-    parser.set_defaults(db="researchloop.db")
+    parser.set_defaults(db=os.getenv("RESEARCHLOOP_DB", "researchloop.db"))
     sub = parser.add_subparsers(dest="command", required=True)
 
     def add_run_options(p: argparse.ArgumentParser) -> None:
@@ -90,6 +94,7 @@ def build_parser() -> argparse.ArgumentParser:
         p.add_argument("--max-tasks", type=int, default=5)
         p.add_argument("--concurrency", type=int, default=3)
         p.add_argument("--critic", action="store_true", help="add an LLM review for coverage gaps")
+        p.add_argument("--lease-ttl", type=float, default=30.0, help="seconds before a dead worker's run is taken over")
 
     run = sub.add_parser("run", help="start a new research run", parents=[common])
     run.add_argument("question")
@@ -103,31 +108,86 @@ def build_parser() -> argparse.ArgumentParser:
     show.add_argument("run_id")
 
     sub.add_parser("list", help="list recent runs", parents=[common])
+
+    worker = sub.add_parser("worker", help="claim and execute queued runs until stopped", parents=[common])
+    add_run_options(worker)
+    worker.add_argument("--max-active", type=int, default=2, help="runs driven concurrently by this worker")
+
+    serve = sub.add_parser("serve", help="start the HTTP API (FastAPI + uvicorn)", parents=[common])
+    serve.add_argument("--host", default="127.0.0.1")
+    serve.add_argument("--port", type=int, default=8000)
+    serve.add_argument("--no-worker", action="store_true", help="API only; run `researchloop worker` separately")
+    add_run_options(serve)
     return parser
 
 
-async def _run(args: argparse.Namespace, store: RunStore) -> int:
-    llm = OpenAICompatLLM.from_env()
-    search = _search_from_args(args)
-    runtime = ResearchRuntime(
-        llm,
-        search,
+def _runtime(args: argparse.Namespace, store: RunStore) -> ResearchRuntime:
+    return ResearchRuntime(
+        OpenAICompatLLM.from_env(),
+        _search_from_args(args),
         store,
         budget=_budget_from_args(args),
         max_tasks=args.max_tasks,
         concurrency=args.concurrency,
         critic=args.critic,
+        lease_ttl=args.lease_ttl,
     )
+
+
+async def _close(runtime: ResearchRuntime) -> None:
+    await runtime.llm.aclose()
+    if isinstance(runtime.search, TavilySearch):
+        await runtime.search.aclose()
+
+
+async def _resume_when_free(runtime: ResearchRuntime, run_id: str) -> RunResult:
+    """Resume, waiting out the lease of a crashed process that still holds the run."""
+    while True:
+        try:
+            return await runtime.resume(run_id)
+        except RunLocked as exc:
+            holder = runtime.store.lease_holder(run_id)
+            if holder is None:
+                continue
+            print(f"{exc}; waiting…", file=sys.stderr)
+            await asyncio.sleep(min(holder[1] + 0.5, runtime.lease_ttl))
+
+
+async def _run(args: argparse.Namespace, store: RunStore) -> int:
+    runtime = _runtime(args, store)
     try:
         if args.command == "run":
             result = await runtime.start(args.question)
         else:
-            result = await runtime.resume(args.run_id)
+            result = await _resume_when_free(runtime, args.run_id)
     finally:
-        await llm.aclose()
-        if isinstance(search, TavilySearch):
-            await search.aclose()
+        await _close(runtime)
     return _report(result, Path(args.out))
+
+
+async def _work(args: argparse.Namespace, store: RunStore) -> int:
+    from .worker import Worker
+
+    runtime = _runtime(args, store)
+    print(f"worker {runtime.owner} polling {args.db}", file=sys.stderr)
+    try:
+        await Worker(runtime, max_active=args.max_active).run()
+    finally:
+        await _close(runtime)
+    return 0
+
+
+def _serve(args: argparse.Namespace, store: RunStore) -> int:
+    try:
+        import uvicorn
+
+        from .server import create_app
+    except ImportError:
+        print('error: install the server extra: pip install "researchloop[server]"', file=sys.stderr)
+        return 2
+    app = create_app(_runtime(args, store), embedded_worker=not args.no_worker)
+    uvicorn.run(app, host=args.host, port=args.port)
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -138,6 +198,10 @@ def main(argv: list[str] | None = None) -> int:
             return _show(store, args.run_id)
         if args.command == "list":
             return _list(store)
+        if args.command == "serve":
+            return _serve(args, store)
+        if args.command == "worker":
+            return asyncio.run(_work(args, store))
         return asyncio.run(_run(args, store))
     except (LLMError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
