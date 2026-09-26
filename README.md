@@ -3,448 +3,68 @@
 # 🔍 DeepTrace
 
 **A fault-tolerant deep research agent that traces every claim to its source.**
-<br>
-Plan → research in parallel → write a cited report → verify every claim → repair or dig deeper → deliver.
 
 [![CI](https://github.com/limengge426/deeptrace-research-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/limengge426/deeptrace-research-agent/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.10+-3776AB?logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white)
-![Docker](https://img.shields.io/badge/deploy-Docker-2496ED?logo=docker&logoColor=white)
-![Core deps](https://img.shields.io/badge/core%20deps-httpx-22A06B)
-![React](https://img.shields.io/badge/UI-React%20%2B%20TypeScript-61DAFB?logo=react&logoColor=black)
-![LangGraph](https://img.shields.io/badge/agent-LangGraph-1C3C3C?logo=langchain&logoColor=white)
-![Neo4j](https://img.shields.io/badge/graph-Neo4j-4581C3?logo=neo4j&logoColor=white)
-![Postgres](https://img.shields.io/badge/store-SQLite%20%7C%20Postgres-4169E1?logo=postgresql&logoColor=white)
+![LangGraph](https://img.shields.io/badge/agent-LangGraph-1C3C3C)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
-**[▶ Try the live demo](https://limengge426.github.io/deeptrace-research-agent/)**: recorded runs of the real agent, replayed in your browser
+**[▶ Live demo](https://limengge426.github.io/deeptrace-research-agent/)** · [Features](docs/features.md) · [Evaluation](docs/evaluation.md) · [Usage](docs/usage.md) · [Design](docs/design.md)
 
 </div>
 
----
-
-Most "deep research" demos generate a report and hope it is right. **DeepTrace treats the report as a set of claims that each have to pass checks.** Every source gets a stable evidence id. Every sentence must cite those ids. A judge model then checks each cited sentence against the full text of its sources, and the verifier decides whether the run is done, needs specific sections rewritten, or needs more research.
-
-Around the model sits a harness built for failure. Runs are checkpointed to SQLite and tool calls go through a write-ahead intent log, so crashes never lose work or repeat side effects. Workers coordinate through **leases with fencing tokens**. Humans can **pause, cancel, approve the plan, or reconcile an interrupted side effect**. Every run reports **metrics per stage, per LLM purpose and per tool**.
-
 <p align="center">
-  <img src="docs/console-live.png" alt="Live view: the task graph fills in as parallel research tasks finish" width="49%">
-  <img src="docs/console-report.png" alt="Report view: every cited sentence coloured by how well its source supports it" width="49%">
+  <img src="docs/console-live.png" width="49%"> <img src="docs/console-report.png" width="49%">
 </p>
 
-## ✨ Highlights
+Most deep research agents write a report and hope it is right. **DeepTrace treats every sentence as a claim that has to pass checks.** Each source gets a stable evidence id. A judge model reads the full text of every cited source and flags claims it does not support. Failing sections are rewritten, and evidence gaps trigger more research. Around the model sits a harness built for failure: checkpoints, leases with fencing tokens, and a write-ahead tool-call log. Crashes lose no work and never repeat a side effect.
+
+## Results
+
+All measured by scripts in [`evals/`](evals/), on a pinned Wikipedia corpus with an independent `gpt-4o` grader. Details and confidence intervals: [docs/evaluation.md](docs/evaluation.md).
 
 | | |
 |---|---|
-| 🧭 **DAG planning** | The planner splits a question into sub-questions with dependencies. Independent tasks run concurrently; dependent tasks receive their prerequisites' findings. Invalid plans (cycles, unknown ids) are sent back to the model with the error. |
-| 🧾 **Evidence ledger** | Every source is deduplicated and gets an id (`E1`, `E2`, …). Findings and the report may only cite ledger ids. |
-| 🔍 **Claim-level faithfulness** | Each cited sentence is judged against the full text of the evidence it cites (supported / partial / unsupported / contradicted). Failing claims become precise repair notes, and whatever is still unsupported after repair is listed under *Limitations* instead of being hidden. The judge can be a separate model, so the writer does not grade itself. |
-| ✅ **Deterministic checks** | Unknown citations, uncited sections, **figures stated without a citation**, sub-questions the report ignored, and sub-questions with no evidence. |
-| 🧩 **Sectioned context engineering** | An outline assigns findings to sections, with a deterministic check that no finding is dropped. Each section is written from **only its own evidence**. Evidence over a section's context budget is condensed into cited notes first. Repairs **rewrite only the sections that failed**. |
-| 🔧 **Repair vs. replan** | Report problems trigger targeted rewrites. Evidence gaps trigger a new planning round for just the missing pieces. Both are bounded. |
-| 💾 **Crash-safe tool layer** | Every tool call is recorded as an intent before it runs and as a result after. On resume, read-only calls are replayed or retried. Side-effecting calls are retried **with the same idempotency key**, or held for a human if the tool has no idempotency support. [82/82 hard-killed runs recovered, every report delivered exactly once](#-crash-recovery-benchmark). |
-| 🔒 **Leased multi-worker execution** | Workers claim runs through heartbeat-renewed leases. A dead worker's runs are taken over when its lease expires. Every checkpoint carries a fencing token, so a stalled worker cannot overwrite the new owner's progress. |
-| 🙋 **Human control** | Cancel or pause a run (applied at the next step boundary), resume it later, require **plan approval** (approve as proposed or submit an edited DAG), and reconcile interrupted side effects. |
-| 📈 **Observability** | Tokens, calls, latency and errors per LLM purpose; calls and cache hits per tool; time per stage. Available per run and aggregated (P50/P95, faithfulness), also in Prometheus format. Live progress over Server-Sent Events. |
-| 🖥️ **Web console** | React + TypeScript console: watch the task graph fill in live, review and edit the plan before research starts, and read reports where **every cited sentence is coloured by how well its source supports it**. Click any citation to see the source text and every sentence that relies on it. |
-| 🌐 **HTTP API & Docker** | FastAPI service; `docker compose up` starts the API plus two worker replicas, with the console served at `/`. |
-| 🤖 **Agentic research (LangGraph)** | Optionally, each sub-question is researched by a LangGraph ReAct agent that decides what to search, refines queries and stops when it has enough evidence. Its tool calls still go through the crash-safe tool runner, its sources still enter the ledger, and its tokens are metered by a LangChain callback into the same budget. |
-| 🔎 **Hybrid retrieval: BM25 + vectors + knowledge graph** | Sentence-transformer embeddings in a Faiss index, and a Neo4j knowledge graph (entities, relations, entity-linked expansion), fused with BM25 by Reciprocal Rank Fusion. [Evaluated on hand-labelled queries](#-retrieval). |
-| 🗄️ **Portable storage (SQLAlchemy + Alembic)** | SQLite by default or Postgres for workers on several hosts (leases use `FOR UPDATE SKIP LOCKED`). The schema is versioned with Alembic, and databases created by older versions are adopted automatically. |
-| 🔌 **Bring your own model & search** | Any OpenAI-compatible endpoint (OpenAI, DeepSeek, Qwen, vLLM, Ollama). Web search (Tavily) with **full-page fetching** of the top hits, or a local folder (Chinese supported). |
+| **82/82** hard-killed runs recovered | byte-identical reports, webhook report delivered exactly once |
+| **99.2%** of swapped citations caught | claim judge flags **100%** of injected factual edits, **0/129** false alarms |
+| **−62%** cumulative evidence in prompts | per-section routing vs. all-evidence prompts; **−20%** total tokens |
+| **100%** of findings cited | enforced by the verifier |
 
-## 🏗️ How it works
+## How it works
 
-```mermaid
-flowchart LR
-    Q([Question]) --> P[Plan<br/>task DAG]
-    P -. optional .-> A{{Human approves<br/>or edits plan}}
-    A -.-> E
-    P --> E[Execute<br/>wave by wave]
-    E --> O[Outline]
-    O --> R[Write sections<br/>per-section evidence]
-    R --> V{Verify<br/>checks + claim judge}
-    V -->|failing sections| R
-    V -->|evidence gaps| P
-    V -->|passed| D[Deliver<br/>webhook, idempotent]
-    D --> F([Done ✓])
+<p align="center"><img src="docs/architecture.png" width="100%"></p>
 
-    E <--> T[[Tool runner<br/>search · fetch]]
-    T --> L[(Evidence<br/>ledger)]
-    L --> R
-    L --> V
-```
-
-Each research task:
-
-1. writes a few search queries (using upstream findings if it has dependencies),
-2. runs them through the tool runner (budgeted, recorded, replayed after crashes),
-3. for web hits, fetches the top pages and keeps the passages most relevant to the question,
-4. adds the evidence to the ledger, and
-5. summarizes it into a **finding** that cites only its own evidence ids.
-
-The reporter then plans an outline over the findings and writes each section from only the evidence its findings used, so no prompt carries the whole evidence set.
-
-## 🚀 Quick start
+## Quick start
 
 ```bash
-git clone https://github.com/limengge426/deeptrace_agent.git
-cd deeptrace-research-agent
-pip install -e ".[dev]"
-```
-
-Point it at any OpenAI-compatible model (or put these lines in a `.env` file):
-
-```bash
-export DEEPTRACE_API_KEY=sk-...
-export DEEPTRACE_MODEL=gpt-4o-mini                      # or deepseek-chat, qwen-plus, ...
-export DEEPTRACE_BASE_URL=https://api.openai.com/v1     # or your provider's endpoint
-```
-
-**Offline**: research a local folder of `.md` / `.txt` files:
-
-```bash
-deeptrace run "Are heat pumps worth it in cold climates?" --corpus examples/corpus
-```
-
-**Web**: search with [Tavily](https://tavily.com); the top hits of each query are fetched in full:
-
-```bash
-export TAVILY_API_KEY=tvly-...
-deeptrace run "What changed in EU AI regulation in 2025?" --critic
-```
-
-The report is written to `reports/<run_id>.md`, with a **Sources** section listing every cited evidence id and a **Limitations** section for anything that could not be verified.
-
-### Inspect and control runs
-
-```bash
-deeptrace show <run_id>                   # event timeline + metrics per LLM purpose, stage and tool
-deeptrace list
-
-deeptrace run "..." --approve-plan        # stop after planning; prints the proposed DAG
-deeptrace approve <run_id> [--plan edited.json]
-deeptrace resume <run_id>                 # continue after approval, a pause, a halt or a crash
-
-deeptrace pause <run_id>                  # applied at the next step boundary
-deeptrace cancel <run_id>
-
-deeptrace run "..." --webhook https://hooks.example/report   # deliver the finished report
-deeptrace resolve <run_id>                                    # list interrupted side-effecting calls
-deeptrace resolve <run_id> <key> --outcome done|retry         # reconcile one of them
-```
-
-<details>
-<summary><b>All run options</b></summary>
-
-| Option | Default | Meaning |
-|---|---|---|
-| `--corpus DIR` | `$DEEPTRACE_CORPUS` | Search local files instead of the web |
-| `--max-tasks` | 5 | Sub-questions in the initial plan |
-| `--concurrency` | 3 | Tasks researched in parallel |
-| `--fetch-pages` | 2 | Web hits per query fetched in full |
-| `--max-tokens` | 250,000 | Token budget for the whole run |
-| `--max-tool-calls` | 60 | Tool call budget (searches and fetches) |
-| `--max-minutes` | 30 | Wall-clock budget (summed across resumes) |
-| `--max-replans` | 2 | Extra research rounds for evidence gaps |
-| `--critic` | off | Ask the LLM to review the report for missing aspects |
-| `--lease-ttl` | 30 | Seconds before a dead worker's run is taken over |
-| `--retrieval` | `bm25` | Over a local corpus: `bm25`, `vector`, `hybrid`, `graph` or `hybrid+graph` |
-| `--researcher` | `pipeline` | `pipeline` (fixed queries → search → summarise) or `agent` (LangGraph ReAct agent) |
-| `--db` | `$DEEPTRACE_DB` or `deeptrace.db` | SQLite file for runs |
-
-</details>
-
-### Retrieval, knowledge graph and storage
-
-```bash
-pip install -e ".[rag,graph,agent]"                     # Faiss + sentence-transformers, Neo4j driver, LangGraph
-
-deeptrace run "..." --corpus docs/ --retrieval hybrid   # BM25 + embeddings (index cached in docs/.deeptrace_index)
-deeptrace graph build --corpus docs/                    # load the corpus into Neo4j (NEO4J_URI/USER/PASSWORD)
-deeptrace run "..." --corpus docs/ --retrieval hybrid+graph --researcher agent
-
-deeptrace db upgrade --db postgresql+psycopg://user:pass@host/deeptrace   # Alembic migrations (also run on startup)
-```
-
-`graph build` extracts entities without a model by default (article titles plus recurring proper names, related when they appear in the same passage). `--extractor llm` asks the model for typed relations instead.
-
-### Web console
-
-```bash
-cd web && npm install && npm run build && cd ..     # builds into the Python package
-deeptrace serve --corpus examples/corpus             # open http://127.0.0.1:8000
-```
-
-| View | What it shows |
-|---|---|
-| **Live** | The task graph, laid out by dependency level, updates as tasks start and finish, next to a readable event log. The log shows worker takeovers ("taken over by worker … lease token 2"), repairs and replans. |
-| **Plan review** | With *"Let me review the plan"* ticked, the run stops after planning; edit, add or remove sub-questions and dependencies, then approve. |
-| **Report** | Sentences are coloured by the claim judge (supported / partial / unsupported / contradicted). Hover for the judge's reason; click `[E3]` to open the source text and every sentence that cites it. |
-| **Metrics** | Tokens per LLM purpose, time per stage, evidence placed into prompts, tool calls and cache hits. |
-
-For development, `npm run dev` in `web/` proxies API calls to a server on port 8000. The same console runs as a static **replay demo** (`npm run build:demo`), published to GitHub Pages by [`pages.yml`](.github/workflows/pages.yml). Its data comes from [`evals/export_demo.py`](evals/export_demo.py), which exports real runs with worker names anonymised and evidence linked to the exact Wikipedia revisions.
-
-### Run as a service
-
-```bash
+git clone https://github.com/limengge426/deeptrace-research-agent.git && cd deeptrace-research-agent
 pip install -e ".[server]"
-deeptrace serve --corpus examples/corpus            # API + embedded worker on :8000
+export DEEPTRACE_API_KEY=sk-...              # any OpenAI-compatible endpoint (DEEPTRACE_BASE_URL, DEEPTRACE_MODEL)
+
+deeptrace run "Are heat pumps worth it in cold climates?" --corpus examples/corpus
+deeptrace serve --corpus examples/corpus     # web console at http://127.0.0.1:8000 (build it once: cd web && npm i && npm run build)
+docker compose up --build                    # API + two workers, optional Postgres / Neo4j profiles
 ```
 
-| Endpoint | |
+More: [web search, hybrid retrieval, the LangGraph agent, plan approval, the HTTP API](docs/usage.md).
+
+## Tech stack
+
+| Layer | |
 |---|---|
-| `POST /runs` `{"question", "approve_plan"?, "webhook_url"?}` | Queue a run (202) |
-| `GET /runs/{id}` | Status, tasks, evidence count, usage, delivery |
-| `GET /runs/{id}/events` | Live Server-Sent Events; reconnect with `Last-Event-ID` to resume the stream |
-| `GET /runs/{id}/report` | The Markdown report once the run is done |
-| `GET /runs/{id}/metrics` | LLM usage per purpose, tool calls and cache hits, time per stage, faithfulness |
-| `POST /runs/{id}/pause` · `/cancel` · `/resume` | Human control |
-| `POST /runs/{id}/plan/approve` `{"tasks"?}` | Approve the proposed plan, or replace it with an edited DAG |
-| `GET /runs/{id}/tool-calls/pending` | Side-effecting calls interrupted mid-flight |
-| `POST /runs/{id}/tool-calls/{key}/resolve` `{"outcome": "done" \| "retry"}` | Reconcile one |
-| `GET /runs/{id}/state` | Everything the console shows: task graph, evidence, report annotated sentence by sentence, metrics |
-| `GET /metrics` `?format=prometheus` | Aggregates across runs (status counts, P50/P95, cache hit rate, faithfulness) |
+| Agent | LangGraph + LangChain, OpenAI-compatible API |
+| Harness | asyncio state machine, checkpoints, leases + fencing tokens, write-ahead tool-call log, budgets |
+| Retrieval | Tavily + page fetch, BM25, sentence-transformers + Faiss, Neo4j knowledge graph, Reciprocal Rank Fusion |
+| Storage | SQLAlchemy (SQLite / Postgres), Alembic |
+| API / UI | FastAPI + Server-Sent Events, React + TypeScript |
+| Ops | Docker Compose, Prometheus metrics, GitHub Actions (SQLite, Postgres and Neo4j jobs), GitHub Pages |
 
-Interactive docs are served at `/docs`.
-
-**API and workers as separate processes.** The API only writes runs to the database, and any number of workers execute them:
-
-```bash
-deeptrace serve --no-worker &
-deeptrace worker &
-deeptrace worker &
-```
-
-**Docker**: the same topology, one API plus two worker replicas on a shared volume:
-
-```bash
-cp .env.example .env    # add your model key
-docker compose up --build
-```
-
-```mermaid
-flowchart LR
-    C([Client]) -->|POST /runs · SSE · control| A[FastAPI]
-    A -->|enqueue · control flags| DB[(SQLite · WAL<br/>runs · leases · events · tool intents)]
-    W1[Worker 1] <-->|claim · heartbeat · fenced checkpoints| DB
-    W2[Worker 2] <-->|claim · heartbeat · fenced checkpoints| DB
-    W1 & W2 --> LLM[[LLM]] & S[[Search · Fetch]] & H[[Webhook]]
-```
-
-<details>
-<summary><b>How leases and fencing work</b></summary>
-
-<br>
-
-1. A worker claims a run by taking its lease (`BEGIN IMMEDIATE`, so two workers cannot both win). A lease has an owner, an expiry and a **fencing token** that increases with every change of owner.
-2. While driving the run, a heartbeat renews the lease every `ttl / 3`.
-3. If the worker dies, nobody renews the lease. Once it expires, another worker claims the run with token + 1 and resumes from the last checkpoint.
-4. If the old worker was only *paused* (GC pause, suspended VM, blocked event loop) and wakes up later, its next checkpoint is conditioned on its old token and is rejected with `LeaseLost`, so it abandons the run instead of overwriting newer progress.
-5. A run that keeps failing (for example because of a bad API key) is marked `failed` after 3 claims instead of being retried forever.
-
-SQLite in WAL mode is safe for several processes on one host (one Docker volume), but not on a network filesystem shared across machines. Scaling beyond one host would mean moving the store to Postgres (`SELECT … FOR UPDATE SKIP LOCKED`).
-
-</details>
-
-<details>
-<summary><b>How the tool layer handles crashes</b></summary>
-
-<br>
-
-Every tool declares whether it has side effects and whether its receiver deduplicates by idempotency key. The runner writes a `pending` intent **before** each call and the result **after** it. On resume:
-
-| Record found | Tool | What happens |
-|---|---|---|
-| `done` | any | The recorded result is replayed; nothing is called |
-| `pending` | read-only (search, fetch) | Called again; a repeat is harmless |
-| `pending` | side effects + idempotency key (webhook) | Called again **with the same key**; the receiver drops the duplicate |
-| `pending` | side effects, no idempotency support | **Not** retried; the run is held as `needs_reconciliation` until a human says whether it happened |
-
-No local bookkeeping can make an external side effect exactly-once on its own: the call and the local write are two separate systems. The intent log makes every possible duplicate *detectable*, and idempotency keys let the receiver make it *harmless*.
-
-</details>
-
-### Use as a library
-
-```python
-import asyncio
-from deeptrace_agent import Budget, LocalCorpusSearch, OpenAICompatLLM, ResearchRuntime, RunStore
-
-runtime = ResearchRuntime(
-    OpenAICompatLLM.from_env(),
-    LocalCorpusSearch("examples/corpus"),
-    RunStore("runs.db"),
-    budget=Budget(max_tokens=100_000),
-    judge_llm=None,          # or a separate (stronger) model for the faithfulness judge
-    report_mode="sections",  # or "single" for the one-shot baseline
-)
-result = asyncio.run(runtime.start("Are heat pumps worth it in cold climates?"))
-print(result.status, result.markdown)
-```
-
-## 🧪 Tests
-
-```bash
-pytest
-```
-
-80 tests, using a scripted LLM and a fake search provider, run offline in a few seconds. They cover:
-
-- **Planning and repair**: parallel waves, dependency hand-off, citation repair, replanning after evidence gaps, one task failing without killing its siblings.
-- **Faithfulness**: claim extraction (including Chinese text and trailing citations), judge fail-closed behaviour, and repair of only the section holding a bad claim.
-- **Context engineering**: outline coverage repair, per-section evidence routing, condensing over-budget evidence.
-- **Crash recovery**: resuming after a hard crash without repeating searches, budget halt and resume.
-- **Workers and leases**: two workers splitting a queue, orphaned-run takeover, and **a stalled worker fenced off after another worker takes over**.
-- **Human control**: cancel, pause and resume, plan approval with edited DAGs.
-- **Tool layer**: replay, retry with the same key, reconciliation holds, page fetching, idempotent delivery.
-- **API, SSE and metrics**.
-
-CI also runs a **deployment drill** ([`evals/deploy_drill.sh`](evals/deploy_drill.sh)): an API and two worker processes against a mock OpenAI-compatible server, with one worker `SIGKILL`ed while it holds a lease; every run must still finish exactly once. A separate job builds the Docker image and completes a run inside the container.
-
-## 💥 Crash-recovery benchmark
-
-[`evals/crash_recovery.py`](evals/crash_recovery.py) hard-kills (`SIGKILL`) a worker process at **every** LLM call, search call, checkpoint write and webhook delivery of a scripted run. The run includes a section repair, a replan and delivery of the report to a webhook, so every stage is exercised. Fresh processes then resume the run: each one waits for the killed process's lease to expire and takes the run over with a new fencing token. Every executed search and every webhook send is written to an fsync'ed side-effect log, so duplicates are counted across processes. The simulated receiver honors `Idempotency-Key`, as Stripe-style APIs do.
-
-| Scenario | Crashed runs | Recovered | Report byte-identical to uncrashed run | Runs with a repeated search | Report delivered exactly once |
-|---|--:|--:|--:|--:|--:|
-| Kill before an LLM call | 21 | 21/21 | 21/21 | 0 | 21/21 |
-| Kill before a search | 8 | 8/8 | 8/8 | 0 | 8/8 |
-| Kill **after** a search, before its result is recorded | 8 | 8/8 | 8/8 | 8 | 8/8 |
-| Kill before a checkpoint write | 13 | 13/13 | 13/13 | 0 | 13/13 |
-| Kill before / **after** the webhook POST | 2 | 2/2 | 2/2 | 0 | 2/2 (1 re-send, deduplicated) |
-| **All single crashes** | **52** | **52/52** | **52/52** | 8 | **52/52** |
-| 2–3 crashes in the same run (random) | 30 | 30/30 | 30/30 | 5 | 30/30 (9 re-sends, deduplicated) |
-
-On average, recovery re-executes **1.3 LLM calls** per crash (2.0 when a run crashes 2–3 times).
-
-**What the numbers mean:** read-only searches are *at-least-once*: a crash between a search and the recording of its result repeats that search, which is harmless. The side-effecting delivery is also sent again after such a crash, but with the same idempotency key, so the receiver processes it **exactly once in 82/82 crashed runs**. Replacing the stable key with a random one makes the same benchmark report a duplicate delivery. Usage counters (tokens, calls) are checkpointed with the run, so work done after the last checkpoint of a crashed process is not counted.
-
-```bash
-python evals/crash_recovery.py    # 83 scenarios, ~1 min; writes evals/results/
-```
-
-## 🎯 Real-model evaluation
-
-[`evals/faithfulness_eval.py`](evals/faithfulness_eval.py) runs 24 research questions over 40 Wikipedia articles pinned to fixed revisions ([manifest](evals/data/wikipedia_manifest.json)). The writer and the in-loop judge are `gpt-4o-mini`. An independent `gpt-4o` grader labels every cited claim of every final report against the full text of its evidence. Full results: [`evals/results/faithfulness_eval.md`](evals/results/faithfulness_eval.md).
-
-**The claim judge catches injected faults.** Faults were injected into claims the grader had labeled *supported*, and only faults the grader confirmed were kept:
-
-| Injected fault | Cases | Caught by the in-loop judge (95% CI) |
-|---|--:|--:|
-| Citation swapped to unrelated evidence | 132 | **99.2%** (95.8–99.9) |
-| Minimal factual edit (a number, entity or direction) | 54 | **100%** flagged (93.4–100); 74.1% as unsupported/contradicted, the rest as *partial* |
-| False alarms on untouched supported claims | 129 | **0.0%** (0.0–2.9) |
-
-**Sectioned writing bounds the context of every call.** Compared with writing the whole report in one call, the largest report-stage call was smaller for **24/24** questions (median **−41%**), at the cost of more calls in total.
-
-**Per-section evidence routing saves tokens and context.** [`evals/routing_ablation.py`](evals/routing_ablation.py) compares routing with the natural alternative, where every section sees all evidence ([results](evals/results/routing_ablation.md)), over 24 questions with paired bootstrap 95% CIs:
-
-| | Routed vs. all-evidence sections |
-|---|--:|
-| LLM tokens per run | **−19.9%** (−13.3 to −25.7) |
-| Report-stage tokens | **−37.0%** (−28.7 to −44.0) |
-| Cumulative evidence exposure in report prompts | **−61.6%** (−54.7 to −66.9), smaller for 23/24 questions |
-| Findings cited by the final report | **100%** in both (enforced by the verifier) |
-| Unsupported or contradicted claims | 2.4% vs. 3.2%: no increase (−0.8 points, CI −4.1 to +1.8) |
-| Claims graded *partial* rather than fully supported | **+6.4 points** (CI +3.2 to +9.6) |
-
-The trade-off: with less evidence in view, sections more often state a claim slightly beyond what its source says (*partial*), without producing more unsupported or contradicted claims.
-
-**Not yet shown: better final reports.** On this clean corpus the baseline already has few unsupported claims (3.3%). With the judge in the loop that fell to 2.2%, but the paired bootstrap interval (−5.3 to +4.0 points) includes zero. The detection results point to the cause: the loop only repairs *unsupported* and *contradicted* claims, while a quarter of injected factual edits are labeled *partial*. Repairing *partial* claims is the next change, to be evaluated on held-out questions.
-
-```bash
-python evals/fetch_wikipedia.py                          # 40 pinned articles, ~2 MB (text not committed: CC BY-SA)
-python evals/faithfulness_eval.py runs grade detect report
-```
-
-## 🔎 Retrieval
-
-[`evals/retrieval_eval.py`](evals/retrieval_eval.py) compares retrieval methods over the same 40 pinned Wikipedia articles (2,868 chunks), with hand-labelled gold articles ([labels](evals/data/retrieval_labels.json), [results](evals/results/retrieval_eval.md)). Embeddings: `all-MiniLM-L6-v2`.
-
-| Method | 48 research questions: Recall@5 | Recall@10 | 40 paraphrased queries: Hit@5 | MRR@10 |
-|---|--:|--:|--:|--:|
-| BM25 | 0.920 | 0.972 | 1.000 | 0.927 |
-| Dense vectors (Faiss) | 0.920 | 0.938 | 1.000 | **0.983** |
-| Hybrid (BM25 + vectors) | 0.917 | 0.944 | 1.000 | 0.963 |
-| Knowledge graph (Neo4j) | 0.906 | 0.955 | 0.600 | 0.523 |
-| **Hybrid (BM25 + vectors + graph)** | **0.941** | **0.979** | 1.000 | 0.942 |
-
-What this shows:
-- **The three-way hybrid covers multi-topic questions best.** Many research questions span two or three articles, and the graph links them through shared entities.
-- **Dense vectors rank paraphrases best.** For queries that avoid the article's own words, they put the right article first more often.
-- **The graph alone is weak on paraphrases.** With no entity named in the query, it has nothing to start from, so it is useful only as part of a hybrid.
-
-**Limitation:** with 40 articles on distinct topics, article-level retrieval is close to ceiling for every method, so the differences are small. A harder passage-level benchmark (LLM-generated questions about specific facts) is on the roadmap.
-
-## 🧰 Tech stack
-
-| Layer | Technologies |
-|---|---|
-| Agent / LLM | OpenAI-compatible API (httpx client), **LangGraph + LangChain** (agentic researcher, tool calling) |
-| Harness | Python, asyncio, state machine with checkpoints, leases + fencing tokens, write-ahead tool-call log, budgets |
-| Retrieval | Tavily + page fetching, BM25, **sentence-transformers + Faiss**, **Neo4j** knowledge graph, Reciprocal Rank Fusion |
-| Storage | **SQLAlchemy** (SQLite or Postgres), **Alembic** migrations |
-| API / UI | FastAPI, Server-Sent Events, React 18 + TypeScript + Vite |
-| Ops | Docker, docker-compose (API, workers, optional Postgres and Neo4j), Prometheus metrics, GitHub Actions (SQLite, Postgres and Neo4j jobs), GitHub Pages demo |
-
-## 🗂️ Layout
-
-```text
-src/deeptrace_agent/
-├── runtime.py       # the Plan → Execute → Report → Verify → Deliver state machine, human control
-├── planner.py       # task DAG planning and replanning, with self-correction
-├── executor.py      # per-task research, concurrent waves, page enrichment
-├── tools.py         # tool runner with write-ahead intents; search, fetch and webhook tools
-├── reporter.py      # outline, per-section evidence routing, condensing, targeted repair
-├── faithfulness.py  # claim extraction and the claim-vs-evidence judge
-├── verifier.py      # deterministic checks + optional LLM critic
-├── ledger.py        # deduplicating evidence ledger
-├── budget.py        # budgets and the metered LLM wrapper
-├── metrics.py       # per-run metrics, aggregation, Prometheus rendering
-├── store.py         # SQLAlchemy store: checkpoints, leases + fencing, control flags, events, tool intents
-├── schema.py        # table definitions shared with the Alembic migrations (migrations/)
-├── agent.py         # LangGraph ReAct researcher for one sub-question
-├── retrieval.py     # sentence-transformer embeddings in Faiss; Reciprocal Rank Fusion
-├── graph.py         # Neo4j knowledge graph: extraction, loading, entity-linked retrieval
-├── factory.py       # builds retrieval and researcher from CLI/env configuration
-├── worker.py        # claims unowned runs and drives them
-├── server.py        # FastAPI app
-├── search.py        # local BM25 corpus and Tavily web search
-├── views.py         # JSON view of a run for the console
-├── llm.py           # OpenAI-compatible client, rate-limit aware retries, robust JSON extraction
-├── env.py           # DEEPTRACE_* configuration
-├── prompts.py
-└── cli.py
-evals/
-├── crash_recovery.py   # fault-injection benchmark; results in evals/results/
-├── retrieval_eval.py   # BM25 vs. vectors vs. graph vs. hybrid on hand-labelled queries
-├── faithfulness_eval.py  # real-model evaluation on pinned Wikipedia articles
-├── routing_ablation.py   # per-section evidence routing vs. all-evidence sections
-├── fetch_wikipedia.py  # builds the pinned evaluation corpus
-├── deploy_drill.sh     # API + 2 workers, one SIGKILLed mid-run
-└── mock_llm_server.py  # scripted OpenAI-compatible server for end-to-end checks
-web/                    # React + TypeScript console (Vite); live mode and replay demo
-Dockerfile · docker-compose.yml
-```
-
-## 🗺️ Roadmap
-
-- [x] Evaluation on a fixed corpus with real models ([results](evals/results/faithfulness_eval.md))
-- [ ] Repair *partial* claims too: implemented behind `repair_partial=True` (off by default); the held-out evaluation ([`evals/partial_repair_eval.py`](evals/partial_repair_eval.py), 24 new questions) is written but has not been run yet
-- [ ] Novelty-based early stopping for research rounds
-- [ ] Contradiction detection across sources
-- [x] Postgres store (`FOR UPDATE SKIP LOCKED`) for workers on several hosts
-- [ ] Passage-level retrieval benchmark (LLM-generated questions about specific facts)
-- [ ] A/B evaluation of the LangGraph agent researcher against the fixed pipeline with real models
-
-## 🙏 Acknowledgements
+## Acknowledgements
 
 The overall design, with a resumable harness, an evidence ledger and a completion check that gates the final report, was inspired by the architecture described in [SichengLong26/deepresearch_agent_harness](https://github.com/SichengLong26/deepresearch_agent_harness). DeepTrace is an independent, from-scratch implementation with a different scope: a library, CLI and HTTP API, with no web UI, knowledge graph or skill system. Its claim-level faithfulness judge targets a gap the original's own documentation names: its claim-support metric is a deterministic proxy, not a semantic check.
 
-## 📄 License
+## License
 
-
-[MIT](LICENSE). The recorded demo data in `web/public/demo/` contains excerpts of Wikipedia articles, which are licensed under CC BY-SA 4.0. Each excerpt links to its source revision.
+[MIT](LICENSE). The demo data in `web/public/demo/` contains Wikipedia excerpts (CC BY-SA 4.0), each linked to its source revision.
 
 <sub>DeepTrace was previously named *researchloop*.</sub>
