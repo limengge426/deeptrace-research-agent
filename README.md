@@ -288,7 +288,20 @@ python evals/crash_recovery.py    # 83 scenarios, ~1 min; writes evals/results/
 | Minimal factual edit (a number, entity or direction) | 54 | **100%** flagged (93.4–100); 74.1% as unsupported/contradicted, the rest as *partial* |
 | False alarms on untouched supported claims | 129 | **0.0%** (0.0–2.9) |
 
-**Sectioned writing bounds the context of every call.** The largest report-stage call was smaller for **24/24** questions (median **−41%**). The cost is more calls: total tokens per run rose 21%.
+**Sectioned writing bounds the context of every call.** Compared with writing the whole report in one call, the largest report-stage call was smaller for **24/24** questions (median **−41%**), at the cost of more calls in total.
+
+**Per-section evidence routing saves tokens and context.** [`evals/routing_ablation.py`](evals/routing_ablation.py) compares routing with the natural alternative, where every section sees all evidence ([results](evals/results/routing_ablation.md)), over 24 questions with paired bootstrap 95% CIs:
+
+| | Routed vs. all-evidence sections |
+|---|--:|
+| LLM tokens per run | **−19.9%** (−13.3 to −25.7) |
+| Report-stage tokens | **−37.0%** (−28.7 to −44.0) |
+| Cumulative evidence exposure in report prompts | **−61.6%** (−54.7 to −66.9), smaller for 23/24 questions |
+| Findings cited by the final report | **100%** in both (enforced by the verifier) |
+| Unsupported or contradicted claims | 2.4% vs. 3.2%: no increase (−0.8 points, CI −4.1 to +1.8) |
+| Claims graded *partial* rather than fully supported | **+6.4 points** (CI +3.2 to +9.6) |
+
+The trade-off: with less evidence in view, sections more often state a claim slightly beyond what its source says (*partial*), without producing more unsupported or contradicted claims.
 
 **Not yet shown: better final reports.** On this clean corpus the baseline already has few unsupported claims (3.3%). With the judge in the loop that fell to 2.2%, but the paired bootstrap interval (−5.3 to +4.0 points) includes zero. The detection results point to the cause: the loop only repairs *unsupported* and *contradicted* claims, while a quarter of injected factual edits are labeled *partial*. Repairing *partial* claims is the next change, to be evaluated on held-out questions.
 
@@ -322,6 +335,7 @@ src/deeptrace_agent/
 evals/
 ├── crash_recovery.py   # fault-injection benchmark; results in evals/results/
 ├── faithfulness_eval.py  # real-model evaluation on pinned Wikipedia articles
+├── routing_ablation.py   # per-section evidence routing vs. all-evidence sections
 ├── fetch_wikipedia.py  # builds the pinned evaluation corpus
 ├── deploy_drill.sh     # API + 2 workers, one SIGKILLed mid-run
 └── mock_llm_server.py  # scripted OpenAI-compatible server for end-to-end checks
@@ -331,7 +345,7 @@ Dockerfile · docker-compose.yml
 ## 🗺️ Roadmap
 
 - [x] Evaluation on a fixed corpus with real models ([results](evals/results/faithfulness_eval.md))
-- [ ] Repair *partial* claims too, evaluated on held-out questions
+- [ ] Repair *partial* claims too (this would also target the routing trade-off), evaluated on held-out questions
 - [ ] Novelty-based early stopping for research rounds
 - [ ] Contradiction detection across sources
 - [ ] Postgres store (`FOR UPDATE SKIP LOCKED`) for workers on several hosts

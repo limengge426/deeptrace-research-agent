@@ -9,3 +9,4 @@ reports/
 evals/data/wikipedia/
 evals/data/*.db*
 evals/data/eval_*.jsonl
+evals/data/*.jsonl

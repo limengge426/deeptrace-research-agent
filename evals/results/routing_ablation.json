@@ -1,0 +1,63 @@
+{
+  "questions": 24,
+  "configs": {
+    "routed": {
+      "tokens": 13145.583333333334,
+      "report_tokens": 5836.333333333333,
+      "report_evidence_chars": 10178.041666666666,
+      "max_prompt_evidence_chars": 4033.2083333333335,
+      "findings_coverage": 1.0,
+      "evidence_coverage": 0.9566787003610109,
+      "supported": 0.7671957671957672,
+      "failing": 0.023809523809523808,
+      "graded": 24
+    },
+    "unrouted": {
+      "tokens": 16403.125,
+      "report_tokens": 9271.083333333334,
+      "report_evidence_chars": 26488.791666666668,
+      "max_prompt_evidence_chars": 7208.666666666667,
+      "findings_coverage": 1.0,
+      "evidence_coverage": 0.9637096774193549,
+      "supported": 0.8235294117647058,
+      "failing": 0.03167420814479638,
+      "graded": 24
+    }
+  },
+  "reductions": {
+    "tokens": [
+      0.19859274782498249,
+      0.13323905956518922,
+      0.25672886905412995,
+      20,
+      24
+    ],
+    "report_tokens": [
+      0.37047989717131224,
+      0.28747004715158075,
+      0.4402481507155831,
+      20,
+      24
+    ],
+    "report_evidence_chars": [
+      0.6157604395569825,
+      0.5473636520618604,
+      0.6691831694423549,
+      23,
+      24
+    ],
+    "max_prompt_evidence_chars": [
+      0.44050564135762504,
+      0.35025445211789297,
+      0.5210106641785491,
+      21,
+      24
+    ]
+  },
+  "supported_share_difference": [
+    -0.056333644568938634,
+    -0.09431441945427566,
+    -0.009460547504025807
+  ],
+  "generated_at": "2026-09-26"
+}

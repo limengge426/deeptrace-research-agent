@@ -53,12 +53,14 @@ async def write_report(
     repair = ""
     if problems:
         repair = prompts.REPAIR_NOTE.format(problems="\n".join(f"- {p.detail}" for p in problems))
+    evidence = ledger.cards(route_evidence(findings, limit=max_evidence), max_chars=card_chars) or "(none)"
     user = prompts.REPORT_USER.format(
         question=question,
         findings=findings_text or "(no findings)",
-        evidence=ledger.cards(route_evidence(findings, limit=max_evidence), max_chars=card_chars) or "(none)",
+        evidence=evidence,
         repair=repair,
     )
+    _record_context(llm, "report", evidence)
     reply = await llm.complete(prompts.REPORT_SYSTEM, user, purpose="report", json_mode=True)
     data = parse_json_object(reply.text)
     sections = [
@@ -80,6 +82,14 @@ class ContextBudget:
     card_chars: int = 700  # preferred size of one evidence card
     min_card_chars: int = 250  # below this, condense evidence into notes instead of truncating
     digest_batch: int = 8  # evidence cards per condensing call
+    route: bool = True  # False: every section sees all evidence (the ablation baseline)
+
+
+def _record_context(llm: LLM, purpose: str, evidence: str) -> None:
+    """Count evidence text placed into a prompt (only when the LLM is metered)."""
+    meter = getattr(llm, "meter", None)
+    if meter is not None and evidence not in ("", "(none)"):
+        meter.metrics.record_context(purpose, len(evidence))
 
 
 def evidence_for(tasks: list[str], findings: dict[str, Finding]) -> list[str]:
@@ -136,7 +146,9 @@ async def _condense(llm: LLM, heading: str, ids: list[str], ledger: EvidenceLedg
     batches = [ids[i : i + budget.digest_batch] for i in range(0, len(ids), budget.digest_batch)]
 
     async def digest(batch: list[str]) -> str:
-        user = f"Section topic: {heading}\n\nEvidence:\n{ledger.cards(batch, max_chars=budget.card_chars)}"
+        cards = ledger.cards(batch, max_chars=budget.card_chars)
+        _record_context(llm, "digest", cards)
+        user = f"Section topic: {heading}\n\nEvidence:\n{cards}"
         reply = await llm.complete(prompts.DIGEST_SYSTEM, user, purpose="digest", json_mode=True)
         try:
             return str(parse_json_object(reply.text).get("notes", "")).strip()
@@ -182,7 +194,9 @@ async def write_section(
         user = f"Research question: {question}\n\nSection summaries:\n{summaries}{repair}"
         reply = await llm.complete(prompts.SYNTHESIS_SYSTEM, user, purpose="synthesis", json_mode=True)
     else:
-        evidence, condensed = await _evidence_block(llm, sec["heading"], evidence_for(sec["tasks"], findings), ledger, budget)
+        tasks = sec["tasks"] if budget.route else list(findings)
+        evidence, condensed = await _evidence_block(llm, sec["heading"], evidence_for(tasks, findings), ledger, budget)
+        _record_context(llm, "section", evidence)
         found = "\n".join(f"- {plan.get(t).question}\n  {findings[t].summary}" for t in sec["tasks"] if t in findings)
         user = prompts.SECTION_USER.format(
             question=question, title=title, heading=sec["heading"], findings=found or "(none)",

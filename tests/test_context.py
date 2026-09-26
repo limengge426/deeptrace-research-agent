@@ -119,3 +119,31 @@ def test_uncited_figure_is_repaired_end_to_end(tmp_path):
     result = asyncio.run(ResearchRuntime(ScriptedLLM(section=section), FakeSearch(),
                                          RunStore(tmp_path / "r.db")).start("Are heat pumps worth it?"))
     assert result.status == "done" and result.state.repairs == 1 and "42%" not in result.markdown
+
+
+def test_unrouted_baseline_shows_every_section_all_evidence():
+    plan, findings, ledger = _world()
+    prompts = {}
+
+    def section(system, user):
+        prompts[re.search(r"Section: (.+)", user).group(1)] = user
+        return fakes.section(system, user)
+
+    llm = ScriptedLLM(section=section)
+    budget = ContextBudget(route=False, section_chars=10**7)
+    asyncio.run(write_sectioned_report(llm, "Q?", plan, findings, ledger, budget=budget))
+    routed = set(re.findall(r"^\[(E\d+)\]", prompts["About t2"], re.MULTILINE))
+    assert routed == {e.id for e in ledger.items()}
+
+
+def test_evidence_exposure_is_metered_and_routing_reduces_it(tmp_path):
+    exposure = {}
+    for route in (True, False):
+        runtime = ResearchRuntime(ScriptedLLM(), FakeSearch(), RunStore(tmp_path / f"{route}.db"),
+                                  check_faithfulness=False,
+                                  context_budget=ContextBudget(route=route, section_chars=10**7))
+        state = asyncio.run(runtime.start("Are heat pumps worth it?")).state
+        context = state.metrics["context"]["section"]
+        assert context["prompts"] == len([s for s in state.report.sections if not s.synthesis])
+        exposure[route] = context["evidence_chars"]
+    assert exposure[True] < exposure[False]

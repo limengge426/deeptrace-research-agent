@@ -27,6 +27,8 @@ class RunMetrics:
         self.llm: dict[str, dict[str, float]] = {k: dict(v) for k, v in data.get("llm", {}).items()}
         self.tools: dict[str, dict[str, float]] = {k: dict(v) for k, v in data.get("tools", {}).items()}
         self.stages: dict[str, dict[str, float]] = {k: dict(v) for k, v in data.get("stages", {}).items()}
+        # Evidence text placed into prompts, per purpose: how much source material the model was shown.
+        self.context: dict[str, dict[str, float]] = {k: dict(v) for k, v in data.get("context", {}).items()}
 
     def record_llm(self, purpose: str, *, tokens: int, seconds: float, error: bool = False) -> None:
         b = _bucket(self.llm, purpose, self.LLM_FIELDS)
@@ -45,13 +47,19 @@ class RunMetrics:
             b["seconds"] = round(b["seconds"] + seconds, 3)
         b["errors"] += int(error)
 
+    def record_context(self, purpose: str, evidence_chars: int) -> None:
+        b = _bucket(self.context, purpose, ("prompts", "evidence_chars", "max_evidence_chars"))
+        b["prompts"] += 1
+        b["evidence_chars"] += evidence_chars
+        b["max_evidence_chars"] = max(b["max_evidence_chars"], evidence_chars)
+
     def record_stage(self, stage: str, seconds: float) -> None:
         b = _bucket(self.stages, stage, self.STAGE_FIELDS)
         b["steps"] += 1
         b["seconds"] = round(b["seconds"] + seconds, 3)
 
     def to_dict(self) -> dict[str, Any]:
-        return {"llm": self.llm, "tools": self.tools, "stages": self.stages}
+        return {"llm": self.llm, "tools": self.tools, "stages": self.stages, "context": self.context}
 
 
 def run_metrics(state: RunState) -> dict[str, Any]:
