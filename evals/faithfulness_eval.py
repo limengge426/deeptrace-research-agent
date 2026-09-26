@@ -292,6 +292,32 @@ async def _make_detect_cases(n, rng, store, grader, slots) -> None:
 # -- step 4: report --------------------------------------------------------------
 
 
+def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float] | None:
+    """95% Wilson score interval for a proportion."""
+    if not n:
+        return None
+    p = k / n
+    den = 1 + z * z / n
+    centre = (p + z * z / (2 * n)) / den
+    half = z * ((p * (1 - p) / n + z * z / (4 * n * n)) ** 0.5) / den
+    return centre - half, centre + half
+
+
+def bootstrap_diff(per_q: dict[str, dict[str, tuple[int, int]]], a: str, b: str, reps: int = 5000,
+                   seed: int = 0) -> tuple[float, float, float]:
+    """Paired (by question) bootstrap of the difference in a pooled rate, config b minus config a."""
+    rng = random.Random(seed)
+    qs = sorted(per_q)
+
+    def rate(config, sample):
+        k = sum(per_q[q][config][0] for q in sample)
+        n = sum(per_q[q][config][1] for q in sample)
+        return k / n if n else 0.0
+
+    diffs = sorted(rate(b, s) - rate(a, s) for s in ([rng.choice(qs) for _ in qs] for _ in range(reps)))
+    return rate(b, qs) - rate(a, qs), diffs[int(0.025 * reps)], diffs[int(0.975 * reps)]
+
+
 def _mean(values):
     values = [v for v in values if v is not None]
     return statistics.mean(values) if values else None
@@ -327,6 +353,22 @@ def step_report() -> None:
             "seconds_mean": _mean([r["seconds"] for r in rs]),
         }
 
+    per_q: dict[str, dict[str, tuple[int, int]]] = {}
+    for r in runs:
+        g = grades.get(r.get("run_id"))
+        if g and r["qid"] in both_done:
+            failing = g["summary"]["unsupported"] + g["summary"]["contradicted"]
+            per_q.setdefault(r["qid"], {})[r["config"]] = (failing, g["summary"]["claims"])
+    significance = {f"{b}_vs_{a}": bootstrap_diff(per_q, a, b)
+                    for a, b in (("single", "sections+judge"), ("sections", "sections+judge"))}
+    largest = {r["qid"]: {} for r in runs if r["qid"] in both_done}
+    for r in runs:
+        if r["qid"] in both_done:
+            largest[r["qid"]][r["config"]] = r.get("max_report_call_tokens", 0)
+    smaller = sum(v["sections"] < v["single"] for v in largest.values())
+    reductions = sorted(1 - v["sections"] / v["single"] for v in largest.values() if v.get("single"))
+    median_reduction = statistics.median(reductions) if reductions else None
+
     det = {}
     originals = [d for d in detect if d["kind"] == "original" and d["grader"]["label"] == "supported"]
     for kind in ("citation_swap", "fact_edit"):
@@ -334,19 +376,32 @@ def step_report() -> None:
         caught = [d for d in confirmed if d["judge"]["label"] in FAILING]
         caught_lenient = [d for d in confirmed if d["judge"]["label"] != "supported"]
         det[kind] = {"cases": len(confirmed), "caught": len(caught), "recall": len(caught) / len(confirmed) if confirmed else None,
+                     "recall_ci": wilson(len(caught), len(confirmed)),
+                     "caught_incl_partial": len(caught_lenient),
                      "recall_incl_partial": len(caught_lenient) / len(confirmed) if confirmed else None,
+                     "recall_incl_partial_ci": wilson(len(caught_lenient), len(confirmed)),
                      "generated": sum(d["kind"] == kind for d in detect)}
     false_alarms = [d for d in originals if d["judge"]["label"] in FAILING]
+    flagged = [d for d in originals if d["judge"]["label"] != "supported"]
     det["false_alarm_rate"] = len(false_alarms) / len(originals) if originals else None
+    det["false_alarm_ci"] = wilson(len(false_alarms), len(originals))
+    det["flag_rate_incl_partial"] = len(flagged) / len(originals) if originals else None
+    det["flag_rate_incl_partial_ci"] = wilson(len(flagged), len(originals))
     det["originals"] = len(originals)
 
     out = {"writer_model": WRITER_MODEL, "grader_model": GRADER_MODEL, "questions": len(both_done),
-           "configs": table, "detection": det, "generated_at": time.strftime("%Y-%m-%d")}
+           "configs": table, "detection": det, "failing_share_differences": significance,
+           "largest_call": {"sections_smaller_in": smaller, "questions": len(largest),
+                            "median_reduction": median_reduction},
+           "generated_at": time.strftime("%Y-%m-%d")}
     RESULTS.mkdir(parents=True, exist_ok=True)
     (RESULTS / "faithfulness_eval.json").write_text(json.dumps(out, indent=2))
 
     def pct(x):
         return "–" if x is None else f"{100 * x:.1f}%"
+
+    def ci(interval):
+        return "" if interval is None else f" ({100 * interval[0]:.1f}–{100 * interval[1]:.1f})"
 
     def num(x, fmt="{:,.0f}"):
         return "–" if x is None else fmt.format(x)
@@ -373,20 +428,33 @@ def step_report() -> None:
                      f"{num(t['repairs_mean'], '{:.2f}')} |")
     lines += [
         "",
+        f"Sectioned writing made the largest report-stage call smaller for {smaller}/{len(largest)} questions "
+        f"(median reduction {pct(median_reduction)}), at the cost of more calls in total.",
+        "",
+        "Difference in the share of unsupported or contradicted claims (paired bootstrap by question, 95% CI):",
+        "",
+    ]
+    for name, (diff, lo, hi) in significance.items():
+        lines.append(f"- `{name.replace('_vs_', '` vs `')}`: {100 * diff:+.1f} points ({100 * lo:+.1f} to {100 * hi:+.1f})")
+    lines += [
+        "",
         "## Can the in-loop judge catch injected faults?",
         "",
         "Faults are injected into claims the grader labeled *supported*; only faults the grader confirms as "
         "unsupported or contradicted are kept as ground truth.",
         "",
-        "| Fault | Confirmed cases | Caught (unsupported/contradicted) | Caught incl. *partial* |",
+        "| Fault | Confirmed cases | Caught as unsupported/contradicted (95% CI) | Flagged incl. *partial* (95% CI) |",
         "|---|--:|--:|--:|",
     ]
     for kind, label in (("citation_swap", "Citation swapped to unrelated evidence"),
                         ("fact_edit", "Minimal factual edit (number, entity, direction)")):
         d = det[kind]
-        lines.append(f"| {label} | {d['cases']} | {pct(d['recall'])} | {pct(d['recall_incl_partial'])} |")
-    lines += ["", f"False alarms on untouched supported claims: {pct(det['false_alarm_rate'])} "
-                  f"({det['originals']} claims).", ""]
+        lines.append(f"| {label} | {d['cases']} | {d['caught']} = {pct(d['recall'])}{ci(d['recall_ci'])} | "
+                     f"{d['caught_incl_partial']} = {pct(d['recall_incl_partial'])}{ci(d['recall_incl_partial_ci'])} |")
+    lines += ["", f"On {det['originals']} untouched claims the grader confirmed as supported, the judge raised "
+                  f"{pct(det['false_alarm_rate'])}{ci(det['false_alarm_ci'])} false alarms "
+                  f"(unsupported/contradicted) and flagged {pct(det['flag_rate_incl_partial'])}"
+                  f"{ci(det['flag_rate_incl_partial_ci'])} as *partial*.", ""]
     (RESULTS / "faithfulness_eval.md").write_text("\n".join(lines))
     print("\n".join(lines))
 

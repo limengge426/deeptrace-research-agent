@@ -276,6 +276,27 @@ On average, recovery re-executes **1.3 LLM calls** per crash (2.0 when a run cra
 python evals/crash_recovery.py    # 83 scenarios, ~1 min; writes evals/results/
 ```
 
+## 🎯 Real-model evaluation
+
+[`evals/faithfulness_eval.py`](evals/faithfulness_eval.py) runs 24 research questions over 40 Wikipedia articles pinned to fixed revisions ([manifest](evals/data/wikipedia_manifest.json)). The writer and the in-loop judge are `gpt-4o-mini`. An independent `gpt-4o` grader labels every cited claim of every final report against the full text of its evidence. Full results: [`evals/results/faithfulness_eval.md`](evals/results/faithfulness_eval.md).
+
+**The claim judge catches injected faults.** Faults were injected into claims the grader had labeled *supported*, and only faults the grader confirmed were kept:
+
+| Injected fault | Cases | Caught by the in-loop judge (95% CI) |
+|---|--:|--:|
+| Citation swapped to unrelated evidence | 132 | **99.2%** (95.8–99.9) |
+| Minimal factual edit (a number, entity or direction) | 54 | **100%** flagged (93.4–100); 74.1% as unsupported/contradicted, the rest as *partial* |
+| False alarms on untouched supported claims | 129 | **0.0%** (0.0–2.9) |
+
+**Sectioned writing bounds the context of every call.** The largest report-stage call was smaller for **24/24** questions (median **−41%**). The cost is more calls: total tokens per run rose 21%.
+
+**Not yet shown: better final reports.** On this clean corpus the baseline already has few unsupported claims (3.3%). With the judge in the loop that fell to 2.2%, but the paired bootstrap interval (−5.3 to +4.0 points) includes zero. The detection results point to the cause: the loop only repairs *unsupported* and *contradicted* claims, while a quarter of injected factual edits are labeled *partial*. Repairing *partial* claims is the next change, to be evaluated on held-out questions.
+
+```bash
+python evals/fetch_wikipedia.py                          # 40 pinned articles, ~2 MB (text not committed: CC BY-SA)
+python evals/faithfulness_eval.py runs grade detect report
+```
+
 ## 🗂️ Layout
 
 ```text
@@ -294,11 +315,14 @@ src/deeptrace_agent/
 ├── worker.py        # claims unowned runs and drives them
 ├── server.py        # FastAPI app
 ├── search.py        # local BM25 corpus and Tavily web search
-├── llm.py           # OpenAI-compatible client, robust JSON extraction
+├── llm.py           # OpenAI-compatible client, rate-limit aware retries, robust JSON extraction
+├── env.py           # DEEPTRACE_* configuration
 ├── prompts.py
 └── cli.py
 evals/
 ├── crash_recovery.py   # fault-injection benchmark; results in evals/results/
+├── faithfulness_eval.py  # real-model evaluation on pinned Wikipedia articles
+├── fetch_wikipedia.py  # builds the pinned evaluation corpus
 ├── deploy_drill.sh     # API + 2 workers, one SIGKILLed mid-run
 └── mock_llm_server.py  # scripted OpenAI-compatible server for end-to-end checks
 Dockerfile · docker-compose.yml
@@ -306,7 +330,8 @@ Dockerfile · docker-compose.yml
 
 ## 🗺️ Roadmap
 
-- [ ] Evaluation on a fixed corpus with real models: faithfulness detection rate, support rate with and without the claim judge, sectioned vs. single-shot token cost
+- [x] Evaluation on a fixed corpus with real models ([results](evals/results/faithfulness_eval.md))
+- [ ] Repair *partial* claims too, evaluated on held-out questions
 - [ ] Novelty-based early stopping for research rounds
 - [ ] Contradiction detection across sources
 - [ ] Postgres store (`FOR UPDATE SKIP LOCKED`) for workers on several hosts

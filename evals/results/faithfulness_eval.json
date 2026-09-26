@@ -51,21 +51,65 @@
   },
   "detection": {
     "citation_swap": {
-      "cases": 0,
-      "caught": 0,
-      "recall": null,
-      "recall_incl_partial": null,
-      "generated": 0
+      "cases": 132,
+      "caught": 131,
+      "recall": 0.9924242424242424,
+      "recall_ci": [
+        0.9583354998483034,
+        0.9986614730966561
+      ],
+      "caught_incl_partial": 131,
+      "recall_incl_partial": 0.9924242424242424,
+      "recall_incl_partial_ci": [
+        0.9583354998483034,
+        0.9986614730966561
+      ],
+      "generated": 150
     },
     "fact_edit": {
-      "cases": 0,
-      "caught": 0,
-      "recall": null,
-      "recall_incl_partial": null,
-      "generated": 0
+      "cases": 54,
+      "caught": 40,
+      "recall": 0.7407407407407407,
+      "recall_ci": [
+        0.610688551197827,
+        0.8388149203520608
+      ],
+      "caught_incl_partial": 54,
+      "recall_incl_partial": 1.0,
+      "recall_incl_partial_ci": [
+        0.9335841332189981,
+        1.0
+      ],
+      "generated": 150
     },
-    "false_alarm_rate": null,
-    "originals": 0
+    "false_alarm_rate": 0.0,
+    "false_alarm_ci": [
+      0.0,
+      0.028918651988533713
+    ],
+    "flag_rate_incl_partial": 0.023255813953488372,
+    "flag_rate_incl_partial_ci": [
+      0.00793999360511028,
+      0.06614523270953815
+    ],
+    "originals": 129
+  },
+  "failing_share_differences": {
+    "sections+judge_vs_single": [
+      -0.01146969071497373,
+      -0.05263157894736842,
+      0.039720558882235524
+    ],
+    "sections+judge_vs_sections": [
+      -0.012202891448174463,
+      -0.05472450760408876,
+      0.04046834585540091
+    ]
+  },
+  "largest_call": {
+    "sections_smaller_in": 24,
+    "questions": 24,
+    "median_reduction": 0.4056926849874256
   },
   "generated_at": "2026-09-26"
 }
