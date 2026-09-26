@@ -29,6 +29,10 @@ PURPOSES = [
     ("You write search queries", "queries"),
     ("You summarize evidence", "finding"),
     ("You write the final report", "report"),
+    ("You plan the structure of a research report", "outline"),
+    ("You write one section of a research report", "section"),
+    ("You write the concluding section", "synthesis"),
+    ("You condense research evidence", "digest"),
     ("You review research reports", "critic"),
     ("You check whether research claims", "judge"),
 ]

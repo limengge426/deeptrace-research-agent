@@ -1,9 +1,11 @@
 {
   "sites": {
-    "llm": 12,
-    "checkpoint": 12,
+    "llm": 21,
+    "checkpoint": 13,
     "search": 8,
-    "search-post": 8
+    "search-post": 8,
+    "webhook": 1,
+    "webhook-post": 1
   },
   "baseline": {
     "kills": [],
@@ -11,10 +13,12 @@
     "lock_waits": 0,
     "processes": 1,
     "status": "done",
-    "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-    "llm_calls": 12,
+    "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+    "llm_calls": 21,
     "searches": 8,
-    "duplicate_searches": 0
+    "duplicate_searches": 0,
+    "webhook_sends": 1,
+    "webhook_effective": 1
   },
   "single": [
     {
@@ -25,13 +29,15 @@
         }
       ],
       "crashes": 1,
-      "lock_waits": 0,
+      "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 12,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 21,
       "searches": 8,
       "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "llm"
     },
     {
@@ -42,13 +48,15 @@
         }
       ],
       "crashes": 1,
-      "lock_waits": 1,
+      "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 12,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 21,
       "searches": 8,
       "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "llm"
     },
     {
@@ -62,10 +70,12 @@
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 13,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 22,
       "searches": 8,
       "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "llm"
     },
     {
@@ -79,10 +89,12 @@
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 14,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 23,
       "searches": 8,
       "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "llm"
     },
     {
@@ -93,13 +105,15 @@
         }
       ],
       "crashes": 1,
-      "lock_waits": 2,
+      "lock_waits": 1,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 12,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 21,
       "searches": 8,
       "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "llm"
     },
     {
@@ -113,10 +127,12 @@
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 13,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 22,
       "searches": 8,
       "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "llm"
     },
     {
@@ -127,13 +143,15 @@
         }
       ],
       "crashes": 1,
-      "lock_waits": 2,
+      "lock_waits": 1,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 12,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 21,
       "searches": 8,
       "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "llm"
     },
     {
@@ -147,61 +165,69 @@
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 12,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 22,
       "searches": 8,
       "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "llm"
     },
     {
       "kills": [
         {
           "killed_at": "llm:9",
-          "stage": "verify"
+          "stage": "report"
         }
       ],
       "crashes": 1,
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 12,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 23,
       "searches": 8,
       "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "llm"
     },
     {
       "kills": [
         {
           "killed_at": "llm:10",
-          "stage": "execute"
+          "stage": "report"
         }
       ],
       "crashes": 1,
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 12,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 24,
       "searches": 8,
       "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "llm"
     },
     {
       "kills": [
         {
           "killed_at": "llm:11",
-          "stage": "execute"
+          "stage": "report"
         }
       ],
       "crashes": 1,
-      "lock_waits": 2,
+      "lock_waits": 1,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 13,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 21,
       "searches": 8,
       "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "llm"
     },
     {
@@ -215,10 +241,183 @@
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 12,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 22,
       "searches": 8,
       "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
+      "kind": "llm"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:13",
+          "stage": "verify"
+        }
+      ],
+      "crashes": 1,
+      "lock_waits": 2,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 21,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
+      "kind": "llm"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:14",
+          "stage": "verify"
+        }
+      ],
+      "crashes": 1,
+      "lock_waits": 2,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 22,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
+      "kind": "llm"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:15",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 1,
+      "lock_waits": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 21,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
+      "kind": "llm"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:16",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 1,
+      "lock_waits": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 22,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
+      "kind": "llm"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:17",
+          "stage": "report"
+        }
+      ],
+      "crashes": 1,
+      "lock_waits": 2,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 21,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
+      "kind": "llm"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:18",
+          "stage": "report"
+        }
+      ],
+      "crashes": 1,
+      "lock_waits": 2,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 22,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
+      "kind": "llm"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:19",
+          "stage": "report"
+        }
+      ],
+      "crashes": 1,
+      "lock_waits": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 23,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
+      "kind": "llm"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:20",
+          "stage": "report"
+        }
+      ],
+      "crashes": 1,
+      "lock_waits": 2,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 24,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
+      "kind": "llm"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:21",
+          "stage": "report"
+        }
+      ],
+      "crashes": 1,
+      "lock_waits": 2,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 25,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "llm"
     },
     {
@@ -232,10 +431,12 @@
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 13,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 22,
       "searches": 8,
       "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "search"
     },
     {
@@ -249,10 +450,12 @@
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 13,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 22,
       "searches": 8,
       "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "search"
     },
     {
@@ -266,10 +469,12 @@
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 15,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 24,
       "searches": 8,
       "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "search"
     },
     {
@@ -283,10 +488,12 @@
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 15,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 24,
       "searches": 8,
       "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "search"
     },
     {
@@ -300,10 +507,12 @@
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 13,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 22,
       "searches": 8,
       "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "search"
     },
     {
@@ -317,10 +526,12 @@
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 13,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 22,
       "searches": 8,
       "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "search"
     },
     {
@@ -331,13 +542,15 @@
         }
       ],
       "crashes": 1,
-      "lock_waits": 1,
+      "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 13,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 22,
       "searches": 8,
       "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "search"
     },
     {
@@ -351,10 +564,12 @@
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 13,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 22,
       "searches": 8,
       "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "search"
     },
     {
@@ -368,10 +583,12 @@
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 13,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 22,
       "searches": 9,
       "duplicate_searches": 1,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "search-post"
     },
     {
@@ -385,10 +602,12 @@
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 13,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 22,
       "searches": 9,
       "duplicate_searches": 1,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "search-post"
     },
     {
@@ -402,10 +621,12 @@
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 15,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 24,
       "searches": 9,
       "duplicate_searches": 1,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "search-post"
     },
     {
@@ -419,10 +640,12 @@
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 15,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 24,
       "searches": 9,
       "duplicate_searches": 1,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "search-post"
     },
     {
@@ -436,10 +659,12 @@
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 13,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 22,
       "searches": 9,
       "duplicate_searches": 1,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "search-post"
     },
     {
@@ -453,10 +678,12 @@
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 13,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 22,
       "searches": 9,
       "duplicate_searches": 1,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "search-post"
     },
     {
@@ -470,10 +697,12 @@
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 13,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 22,
       "searches": 9,
       "duplicate_searches": 1,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "search-post"
     },
     {
@@ -484,13 +713,15 @@
         }
       ],
       "crashes": 1,
-      "lock_waits": 2,
+      "lock_waits": 1,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 13,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 22,
       "searches": 9,
       "duplicate_searches": 1,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "search-post"
     },
     {
@@ -504,10 +735,12 @@
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 13,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 22,
       "searches": 8,
       "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "checkpoint"
     },
     {
@@ -521,10 +754,12 @@
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 15,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 24,
       "searches": 8,
       "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "checkpoint"
     },
     {
@@ -538,10 +773,12 @@
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 14,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 23,
       "searches": 8,
       "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "checkpoint"
     },
     {
@@ -555,10 +792,12 @@
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 12,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 21,
       "searches": 8,
       "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "checkpoint"
     },
     {
@@ -572,10 +811,12 @@
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 13,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 25,
       "searches": 8,
       "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "checkpoint"
     },
     {
@@ -589,10 +830,12 @@
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 12,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 21,
       "searches": 8,
       "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "checkpoint"
     },
     {
@@ -606,10 +849,12 @@
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 13,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 23,
       "searches": 8,
       "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "checkpoint"
     },
     {
@@ -623,10 +868,12 @@
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 13,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 23,
       "searches": 8,
       "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "checkpoint"
     },
     {
@@ -640,10 +887,12 @@
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 14,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 23,
       "searches": 8,
       "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "checkpoint"
     },
     {
@@ -657,10 +906,12 @@
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 12,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 21,
       "searches": 8,
       "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "checkpoint"
     },
     {
@@ -674,10 +925,12 @@
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 13,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 26,
       "searches": 8,
       "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "checkpoint"
     },
     {
@@ -691,11 +944,70 @@
       "lock_waits": 2,
       "processes": 2,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 12,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 21,
       "searches": 8,
       "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
       "kind": "checkpoint"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "checkpoint:13",
+          "stage": "deliver"
+        }
+      ],
+      "crashes": 1,
+      "lock_waits": 2,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 21,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
+      "kind": "checkpoint"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "webhook:1",
+          "stage": "deliver"
+        }
+      ],
+      "crashes": 1,
+      "lock_waits": 2,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 21,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1,
+      "kind": "webhook"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "webhook-post:1",
+          "stage": "deliver"
+        }
+      ],
+      "crashes": 1,
+      "lock_waits": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 21,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 2,
+      "webhook_effective": 1,
+      "kind": "webhook-post"
     }
   ],
   "multi": [
@@ -706,526 +1018,20 @@
           "stage": "execute"
         },
         {
-          "killed_at": "llm:1",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "llm:3",
-          "stage": "execute"
-        }
-      ],
-      "crashes": 3,
-      "lock_waits": 6,
-      "processes": 4,
-      "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 17,
-      "searches": 8,
-      "duplicate_searches": 0
-    },
-    {
-      "kills": [
-        {
-          "killed_at": "search:1",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "llm:4",
-          "stage": "execute"
-        }
-      ],
-      "crashes": 2,
-      "lock_waits": 4,
-      "processes": 3,
-      "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 13,
-      "searches": 8,
-      "duplicate_searches": 0
-    },
-    {
-      "kills": [
-        {
-          "killed_at": "llm:2",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "llm:5",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "checkpoint:1",
-          "stage": "execute"
-        }
-      ],
-      "crashes": 3,
-      "lock_waits": 6,
-      "processes": 4,
-      "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 15,
-      "searches": 8,
-      "duplicate_searches": 0
-    },
-    {
-      "kills": [
-        {
-          "killed_at": "search:1",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "checkpoint:1",
-          "stage": "execute"
-        }
-      ],
-      "crashes": 2,
-      "lock_waits": 4,
-      "processes": 3,
-      "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 16,
-      "searches": 8,
-      "duplicate_searches": 0
-    },
-    {
-      "kills": [
-        {
-          "killed_at": "llm:5",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "search:3",
-          "stage": "execute"
-        }
-      ],
-      "crashes": 2,
-      "lock_waits": 4,
-      "processes": 3,
-      "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 13,
-      "searches": 8,
-      "duplicate_searches": 0
-    },
-    {
-      "kills": [
-        {
-          "killed_at": "search:1",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "search-post:2",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "llm:5",
-          "stage": "execute"
-        }
-      ],
-      "crashes": 3,
-      "lock_waits": 6,
-      "processes": 4,
-      "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 15,
-      "searches": 9,
-      "duplicate_searches": 1
-    },
-    {
-      "kills": [
-        {
-          "killed_at": "search-post:1",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "llm:5",
-          "stage": "execute"
-        }
-      ],
-      "crashes": 2,
-      "lock_waits": 4,
-      "processes": 3,
-      "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 14,
-      "searches": 9,
-      "duplicate_searches": 1
-    },
-    {
-      "kills": [
-        {
-          "killed_at": "search:4",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "checkpoint:3",
-          "stage": "execute"
-        }
-      ],
-      "crashes": 2,
-      "lock_waits": 4,
-      "processes": 3,
-      "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 15,
-      "searches": 8,
-      "duplicate_searches": 0
-    },
-    {
-      "kills": [
-        {
-          "killed_at": "checkpoint:3",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "search-post:2",
-          "stage": "execute"
-        }
-      ],
-      "crashes": 2,
-      "lock_waits": 4,
-      "processes": 3,
-      "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 15,
-      "searches": 9,
-      "duplicate_searches": 1
-    },
-    {
-      "kills": [
-        {
-          "killed_at": "search-post:4",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "search-post:4",
-          "stage": "execute"
-        }
-      ],
-      "crashes": 2,
-      "lock_waits": 4,
-      "processes": 3,
-      "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 16,
-      "searches": 10,
-      "duplicate_searches": 2
-    },
-    {
-      "kills": [
-        {
-          "killed_at": "llm:1",
-          "stage": "plan"
-        },
-        {
-          "killed_at": "checkpoint:2",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "search-post:2",
-          "stage": "execute"
-        }
-      ],
-      "crashes": 3,
-      "lock_waits": 6,
-      "processes": 4,
-      "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 16,
-      "searches": 9,
-      "duplicate_searches": 1
-    },
-    {
-      "kills": [
-        {
-          "killed_at": "checkpoint:1",
-          "stage": "plan"
-        },
-        {
-          "killed_at": "llm:5",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "search-post:3",
-          "stage": "execute"
-        }
-      ],
-      "crashes": 3,
-      "lock_waits": 6,
-      "processes": 4,
-      "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 14,
-      "searches": 9,
-      "duplicate_searches": 1
-    },
-    {
-      "kills": [
-        {
-          "killed_at": "checkpoint:5",
-          "stage": "report"
-        },
-        {
-          "killed_at": "checkpoint:1",
-          "stage": "report"
-        },
-        {
-          "killed_at": "llm:3",
-          "stage": "verify"
-        }
-      ],
-      "crashes": 3,
-      "lock_waits": 6,
-      "processes": 4,
-      "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 14,
-      "searches": 8,
-      "duplicate_searches": 0
-    },
-    {
-      "kills": [
-        {
-          "killed_at": "llm:1",
-          "stage": "plan"
-        },
-        {
-          "killed_at": "search-post:4",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "search-post:4",
-          "stage": "execute"
-        }
-      ],
-      "crashes": 3,
-      "lock_waits": 6,
-      "processes": 4,
-      "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 16,
-      "searches": 10,
-      "duplicate_searches": 2
-    },
-    {
-      "kills": [
-        {
-          "killed_at": "llm:4",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "search-post:2",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "llm:4",
-          "stage": "execute"
-        }
-      ],
-      "crashes": 3,
-      "lock_waits": 6,
-      "processes": 4,
-      "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 17,
-      "searches": 9,
-      "duplicate_searches": 1
-    },
-    {
-      "kills": [
-        {
-          "killed_at": "search:3",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "search:2",
-          "stage": "execute"
-        }
-      ],
-      "crashes": 2,
-      "lock_waits": 4,
-      "processes": 3,
-      "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 18,
-      "searches": 8,
-      "duplicate_searches": 0
-    },
-    {
-      "kills": [
-        {
-          "killed_at": "checkpoint:4",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "llm:2",
-          "stage": "report"
-        },
-        {
-          "killed_at": "checkpoint:4",
-          "stage": "execute"
-        }
-      ],
-      "crashes": 3,
-      "lock_waits": 6,
-      "processes": 4,
-      "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 12,
-      "searches": 8,
-      "duplicate_searches": 0
-    },
-    {
-      "kills": [
-        {
-          "killed_at": "search:4",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "search-post:4",
-          "stage": "execute"
-        }
-      ],
-      "crashes": 2,
-      "lock_waits": 4,
-      "processes": 3,
-      "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 16,
-      "searches": 9,
-      "duplicate_searches": 1
-    },
-    {
-      "kills": [
-        {
-          "killed_at": "search:1",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "search:2",
-          "stage": "execute"
+          "killed_at": "webhook-post:1",
+          "stage": "deliver"
         }
       ],
       "crashes": 2,
       "lock_waits": 3,
       "processes": 3,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 14,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 24,
       "searches": 8,
-      "duplicate_searches": 0
-    },
-    {
-      "kills": [
-        {
-          "killed_at": "search:1",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "checkpoint:5",
-          "stage": "verify"
-        }
-      ],
-      "crashes": 2,
-      "lock_waits": 4,
-      "processes": 3,
-      "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 13,
-      "searches": 8,
-      "duplicate_searches": 0
-    },
-    {
-      "kills": [
-        {
-          "killed_at": "search-post:3",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "llm:2",
-          "stage": "execute"
-        }
-      ],
-      "crashes": 2,
-      "lock_waits": 4,
-      "processes": 3,
-      "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 16,
-      "searches": 9,
-      "duplicate_searches": 1
-    },
-    {
-      "kills": [
-        {
-          "killed_at": "search-post:3",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "search:1",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "checkpoint:6",
-          "stage": "report"
-        }
-      ],
-      "crashes": 3,
-      "lock_waits": 6,
-      "processes": 4,
-      "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 19,
-      "searches": 9,
-      "duplicate_searches": 1
-    },
-    {
-      "kills": [
-        {
-          "killed_at": "checkpoint:4",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "checkpoint:1",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "checkpoint:6",
-          "stage": "execute"
-        }
-      ],
-      "crashes": 3,
-      "lock_waits": 6,
-      "processes": 4,
-      "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 14,
-      "searches": 8,
-      "duplicate_searches": 0
-    },
-    {
-      "kills": [
-        {
-          "killed_at": "llm:2",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "llm:2",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "checkpoint:2",
-          "stage": "execute"
-        }
-      ],
-      "crashes": 3,
-      "lock_waits": 6,
-      "processes": 4,
-      "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 15,
-      "searches": 8,
-      "duplicate_searches": 0
+      "duplicate_searches": 0,
+      "webhook_sends": 2,
+      "webhook_effective": 1
     },
     {
       "kills": [
@@ -1234,18 +1040,442 @@
           "stage": "execute"
         },
         {
-          "killed_at": "llm:1",
-          "stage": "execute"
+          "killed_at": "webhook:1",
+          "stage": "deliver"
         }
       ],
       "crashes": 2,
       "lock_waits": 4,
       "processes": 3,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 13,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 22,
       "searches": 9,
-      "duplicate_searches": 1
+      "duplicate_searches": 1,
+      "webhook_sends": 1,
+      "webhook_effective": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:7",
+          "stage": "report"
+        },
+        {
+          "killed_at": "checkpoint:1",
+          "stage": "report"
+        }
+      ],
+      "crashes": 2,
+      "lock_waits": 3,
+      "processes": 3,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 25,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:9",
+          "stage": "report"
+        },
+        {
+          "killed_at": "checkpoint:1",
+          "stage": "report"
+        }
+      ],
+      "crashes": 2,
+      "lock_waits": 3,
+      "processes": 3,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 27,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search:1",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "webhook:1",
+          "stage": "deliver"
+        }
+      ],
+      "crashes": 2,
+      "lock_waits": 4,
+      "processes": 3,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 22,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search:1",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "webhook:1",
+          "stage": "deliver"
+        }
+      ],
+      "crashes": 2,
+      "lock_waits": 4,
+      "processes": 3,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 22,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "checkpoint:2",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "webhook:1",
+          "stage": "deliver"
+        },
+        {
+          "killed_at": "webhook:1",
+          "stage": "deliver"
+        }
+      ],
+      "crashes": 3,
+      "lock_waits": 6,
+      "processes": 4,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 24,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:10",
+          "stage": "report"
+        },
+        {
+          "killed_at": "webhook:1",
+          "stage": "deliver"
+        }
+      ],
+      "crashes": 2,
+      "lock_waits": 3,
+      "processes": 3,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 24,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:9",
+          "stage": "report"
+        },
+        {
+          "killed_at": "webhook-post:1",
+          "stage": "deliver"
+        },
+        {
+          "killed_at": "webhook:1",
+          "stage": "deliver"
+        }
+      ],
+      "crashes": 3,
+      "lock_waits": 6,
+      "processes": 4,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 23,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 2,
+      "webhook_effective": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "checkpoint:6",
+          "stage": "verify"
+        },
+        {
+          "killed_at": "webhook:1",
+          "stage": "deliver"
+        }
+      ],
+      "crashes": 2,
+      "lock_waits": 4,
+      "processes": 3,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 21,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "checkpoint:5",
+          "stage": "report"
+        },
+        {
+          "killed_at": "checkpoint:3",
+          "stage": "report"
+        },
+        {
+          "killed_at": "search-post:2",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 3,
+      "lock_waits": 6,
+      "processes": 4,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 28,
+      "searches": 9,
+      "duplicate_searches": 1,
+      "webhook_sends": 1,
+      "webhook_effective": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "webhook-post:1",
+          "stage": "deliver"
+        }
+      ],
+      "crashes": 1,
+      "lock_waits": 2,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 21,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 2,
+      "webhook_effective": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "webhook:1",
+          "stage": "deliver"
+        }
+      ],
+      "crashes": 1,
+      "lock_waits": 2,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 21,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "webhook:1",
+          "stage": "deliver"
+        }
+      ],
+      "crashes": 1,
+      "lock_waits": 2,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 21,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "checkpoint:4",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "llm:2",
+          "stage": "report"
+        }
+      ],
+      "crashes": 2,
+      "lock_waits": 4,
+      "processes": 3,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 22,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search-post:3",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "webhook:1",
+          "stage": "deliver"
+        },
+        {
+          "killed_at": "webhook:1",
+          "stage": "deliver"
+        }
+      ],
+      "crashes": 3,
+      "lock_waits": 5,
+      "processes": 4,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 24,
+      "searches": 9,
+      "duplicate_searches": 1,
+      "webhook_sends": 1,
+      "webhook_effective": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:5",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "checkpoint:6",
+          "stage": "verify"
+        }
+      ],
+      "crashes": 2,
+      "lock_waits": 3,
+      "processes": 3,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 23,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:5",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "webhook-post:1",
+          "stage": "deliver"
+        }
+      ],
+      "crashes": 2,
+      "lock_waits": 3,
+      "processes": 3,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 21,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 2,
+      "webhook_effective": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "webhook-post:1",
+          "stage": "deliver"
+        },
+        {
+          "killed_at": "webhook-post:1",
+          "stage": "deliver"
+        }
+      ],
+      "crashes": 2,
+      "lock_waits": 3,
+      "processes": 3,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 21,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 3,
+      "webhook_effective": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search:1",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "checkpoint:1",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "search:3",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 3,
+      "lock_waits": 5,
+      "processes": 4,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 26,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "webhook-post:1",
+          "stage": "deliver"
+        }
+      ],
+      "crashes": 1,
+      "lock_waits": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 21,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 2,
+      "webhook_effective": 1
     },
     {
       "kills": [
@@ -1254,75 +1484,175 @@
           "stage": "execute"
         },
         {
-          "killed_at": "llm:1",
-          "stage": "execute"
-        }
-      ],
-      "crashes": 2,
-      "lock_waits": 4,
-      "processes": 3,
-      "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 13,
-      "searches": 8,
-      "duplicate_searches": 0
-    },
-    {
-      "kills": [
-        {
-          "killed_at": "checkpoint:2",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "search-post:3",
-          "stage": "execute"
-        }
-      ],
-      "crashes": 2,
-      "lock_waits": 4,
-      "processes": 3,
-      "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 16,
-      "searches": 9,
-      "duplicate_searches": 1
-    },
-    {
-      "kills": [
-        {
-          "killed_at": "checkpoint:1",
-          "stage": "plan"
-        },
-        {
-          "killed_at": "llm:4",
-          "stage": "execute"
-        },
-        {
           "killed_at": "checkpoint:4",
           "stage": "report"
+        },
+        {
+          "killed_at": "webhook:1",
+          "stage": "deliver"
         }
       ],
       "crashes": 3,
       "lock_waits": 6,
       "processes": 4,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 16,
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 26,
       "searches": 8,
-      "duplicate_searches": 0
+      "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1
     },
     {
       "kills": [
+        {
+          "killed_at": "checkpoint:5",
+          "stage": "report"
+        }
+      ],
+      "crashes": 1,
+      "lock_waits": 2,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 25,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "webhook-post:1",
+          "stage": "deliver"
+        }
+      ],
+      "crashes": 1,
+      "lock_waits": 2,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 21,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 2,
+      "webhook_effective": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search:2",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "llm:8",
+          "stage": "report"
+        }
+      ],
+      "crashes": 2,
+      "lock_waits": 4,
+      "processes": 3,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 24,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search-post:3",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "llm:3",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 2,
+      "lock_waits": 4,
+      "processes": 3,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 26,
+      "searches": 9,
+      "duplicate_searches": 1,
+      "webhook_sends": 1,
+      "webhook_effective": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "webhook:1",
+          "stage": "deliver"
+        },
+        {
+          "killed_at": "webhook:1",
+          "stage": "deliver"
+        }
+      ],
+      "crashes": 2,
+      "lock_waits": 3,
+      "processes": 3,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 21,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 1,
+      "webhook_effective": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "webhook-post:1",
+          "stage": "deliver"
+        }
+      ],
+      "crashes": 1,
+      "lock_waits": 2,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 21,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 2,
+      "webhook_effective": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "webhook-post:1",
+          "stage": "deliver"
+        }
+      ],
+      "crashes": 1,
+      "lock_waits": 2,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 21,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "webhook_sends": 2,
+      "webhook_effective": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search:1",
+          "stage": "execute"
+        },
         {
           "killed_at": "search-post:1",
           "stage": "execute"
         },
         {
-          "killed_at": "search:1",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "search-post:3",
+          "killed_at": "llm:1",
           "stage": "execute"
         }
       ],
@@ -1330,35 +1660,13 @@
       "lock_waits": 6,
       "processes": 4,
       "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 17,
-      "searches": 10,
-      "duplicate_searches": 2
-    },
-    {
-      "kills": [
-        {
-          "killed_at": "search:1",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "search:3",
-          "stage": "execute"
-        },
-        {
-          "killed_at": "search:1",
-          "stage": "execute"
-        }
-      ],
-      "crashes": 3,
-      "lock_waits": 6,
-      "processes": 4,
-      "status": "done",
-      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
-      "llm_calls": 19,
-      "searches": 8,
-      "duplicate_searches": 0
+      "report_sha": "6baf499d582a123b6b87a31b40dac911202393640c9367e70d8def184cd11ae1",
+      "llm_calls": 23,
+      "searches": 9,
+      "duplicate_searches": 1,
+      "webhook_sends": 1,
+      "webhook_effective": 1
     }
   ],
-  "seconds": 61.5
+  "seconds": 60.0
 }

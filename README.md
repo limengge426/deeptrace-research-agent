@@ -2,9 +2,9 @@
 
 # 🔁 researchloop
 
-**An evidence-first, resumable research agent.**
+**An evidence-first, fault-tolerant research agent harness.**
 <br>
-Plan → research in parallel → write a cited report → verify it → repair or dig deeper.
+Plan → research in parallel → write a cited report → verify every claim → repair or dig deeper → deliver.
 
 [![CI](https://github.com/limengge426/researchloop/actions/workflows/ci.yml/badge.svg)](https://github.com/limengge426/researchloop/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.10+-3776AB?logo=python&logoColor=white)
@@ -17,50 +17,58 @@ Plan → research in parallel → write a cited report → verify it → repair 
 
 ---
 
-Most "deep research" demos generate a report and hope it is right. **researchloop treats the report as a claim that has to pass checks.** Every search hit gets a stable evidence id, every sentence in the report must cite those ids, and a deterministic verifier decides whether the run is done, needs the report rewritten, or needs more research. Runs are checkpointed to SQLite, so a crash, a Ctrl-C or an exhausted budget never throws work away. Behind an HTTP API, any number of workers share the queue: **leases with fencing tokens** make sure each run is driven by one worker at a time, and a dead worker's runs are taken over automatically.
+Most "deep research" demos generate a report and hope it is right. **researchloop treats the report as a set of claims that each have to pass checks.** Every source gets a stable evidence id. Every sentence must cite those ids. A judge model then checks each cited sentence against the full text of its sources, and the verifier decides whether the run is done, needs specific sections rewritten, or needs more research.
+
+Around the model sits a harness built for failure. Runs are checkpointed to SQLite and tool calls go through a write-ahead intent log, so crashes never lose work or repeat side effects. Workers coordinate through **leases with fencing tokens**. Humans can **pause, cancel, approve the plan, or reconcile an interrupted side effect**. Every run reports **metrics per stage, per LLM purpose and per tool**.
 
 ## ✨ Highlights
 
 | | |
 |---|---|
-| 🧭 **DAG planning** | The planner splits a question into sub-questions with dependencies. Independent tasks run concurrently; dependent tasks receive their prerequisites' findings. Invalid plans (cycles, unknown ids) are rejected and sent back to the model with the error. |
-| 🧾 **Evidence ledger** | Search hits are deduplicated and assigned ids (`E1`, `E2`, …). Findings and the report may only cite ledger ids; hallucinated citations are caught and stripped. |
-| ✅ **Deterministic verification** | Before finishing, the verifier checks for unknown citations, uncited sections, sub-questions the report ignored, and sub-questions with no evidence. Optionally, an LLM critic looks for coverage gaps. |
-| 🔧 **Repair vs. replan** | Report problems trigger a targeted rewrite with the verifier's notes. Evidence gaps trigger a new planning round for just the missing pieces. Both are bounded. |
-| 💾 **Crash-safe & resumable** | State is checkpointed after every stage and every wave of tasks. Tool calls are cached by content hash, so a resumed run replays searches instead of repeating them. [Recovers 40/40 hard-killed runs](#-crash-recovery-benchmark) with byte-identical reports. |
-| 🔒 **Leased multi-worker execution** | Workers claim runs through time-bound leases renewed by a heartbeat. A dead worker's runs are taken over when its lease expires. Every checkpoint carries a fencing token, so a stalled worker that wakes up after losing its lease cannot overwrite the new owner's progress. |
-| 🌐 **HTTP API & Docker** | FastAPI service to submit runs, follow them live over Server-Sent Events (resumable via `Last-Event-ID`) and fetch reports. `docker compose up` starts the API and two worker replicas. |
-| 💰 **Hard budgets** | Tokens, tool calls, wall-clock time, replans and repairs are all capped. Hitting a cap *halts* the run cleanly; resume it later with a bigger budget. |
-| 🔌 **Bring your own model & search** | Any OpenAI-compatible endpoint (OpenAI, DeepSeek, Qwen, vLLM, Ollama). Search the web with Tavily or a local folder of notes with the built-in BM25 (Chinese supported). |
+| 🧭 **DAG planning** | The planner splits a question into sub-questions with dependencies. Independent tasks run concurrently; dependent tasks receive their prerequisites' findings. Invalid plans (cycles, unknown ids) are sent back to the model with the error. |
+| 🧾 **Evidence ledger** | Every source is deduplicated and gets an id (`E1`, `E2`, …). Findings and the report may only cite ledger ids. |
+| 🔍 **Claim-level faithfulness** | Each cited sentence is judged against the full text of the evidence it cites (supported / partial / unsupported / contradicted). Failing claims become precise repair notes, and whatever is still unsupported after repair is listed under *Limitations* instead of being hidden. The judge can be a separate model, so the writer does not grade itself. |
+| ✅ **Deterministic checks** | Unknown citations, uncited sections, **figures stated without a citation**, sub-questions the report ignored, and sub-questions with no evidence. |
+| 🧩 **Sectioned context engineering** | An outline assigns findings to sections, with a deterministic check that no finding is dropped. Each section is written from **only its own evidence**. Evidence over a section's context budget is condensed into cited notes first. Repairs **rewrite only the sections that failed**. |
+| 🔧 **Repair vs. replan** | Report problems trigger targeted rewrites. Evidence gaps trigger a new planning round for just the missing pieces. Both are bounded. |
+| 💾 **Crash-safe tool layer** | Every tool call is recorded as an intent before it runs and as a result after. On resume, read-only calls are replayed or retried. Side-effecting calls are retried **with the same idempotency key**, or held for a human if the tool has no idempotency support. [82/82 hard-killed runs recovered, every report delivered exactly once](#-crash-recovery-benchmark). |
+| 🔒 **Leased multi-worker execution** | Workers claim runs through heartbeat-renewed leases. A dead worker's runs are taken over when its lease expires. Every checkpoint carries a fencing token, so a stalled worker cannot overwrite the new owner's progress. |
+| 🙋 **Human control** | Cancel or pause a run (applied at the next step boundary), resume it later, require **plan approval** (approve as proposed or submit an edited DAG), and reconcile interrupted side effects. |
+| 📈 **Observability** | Tokens, calls, latency and errors per LLM purpose; calls and cache hits per tool; time per stage. Available per run and aggregated (P50/P95, faithfulness), also in Prometheus format. Live progress over Server-Sent Events. |
+| 🌐 **HTTP API & Docker** | FastAPI service; `docker compose up` starts the API plus two worker replicas. |
+| 🔌 **Bring your own model & search** | Any OpenAI-compatible endpoint (OpenAI, DeepSeek, Qwen, vLLM, Ollama). Web search (Tavily) with **full-page fetching** of the top hits, or a local folder with the built-in BM25 (Chinese supported). |
 
 ## 🏗️ How it works
 
 ```mermaid
 flowchart LR
     Q([Question]) --> P[Plan<br/>task DAG]
+    P -. optional .-> A{{Human approves<br/>or edits plan}}
+    A -.-> E
     P --> E[Execute<br/>wave by wave]
-    E --> R[Report<br/>cited]
-    R --> V{Verify}
-    V -->|passed| D([Done ✓])
-    V -->|report issues| R
+    E --> O[Outline]
+    O --> R[Write sections<br/>per-section evidence]
+    R --> V{Verify<br/>checks + claim judge}
+    V -->|failing sections| R
     V -->|evidence gaps| P
-    V -->|out of budget| H([Halted ⏸])
+    V -->|passed| D[Deliver<br/>webhook, idempotent]
+    D --> F([Done ✓])
 
-    E <--> T[[Search<br/>web / local]]
-    E --> L[(Evidence<br/>ledger)]
+    E <--> T[[Tool runner<br/>search · fetch]]
+    T --> L[(Evidence<br/>ledger)]
     L --> R
     L --> V
-    S[(SQLite<br/>checkpoints · events · tool cache)] -.- E
 ```
 
 Each research task:
 
 1. writes a few search queries (using upstream findings if it has dependencies),
-2. runs them through the search provider (cached, budgeted),
-3. adds the hits to the ledger, and
-4. summarizes them into a **finding** that cites only its own evidence ids.
+2. runs them through the tool runner (budgeted, recorded, replayed after crashes),
+3. for web hits, fetches the top pages and keeps the passages most relevant to the question,
+4. adds the evidence to the ledger, and
+5. summarizes it into a **finding** that cites only its own evidence ids.
 
-The reporter then sees the findings plus only the evidence those findings used, which keeps the prompt small while every claim stays traceable back to a source.
+The reporter then plans an outline over the findings and writes each section from only the evidence its findings used, so no prompt carries the whole evidence set.
 
 ## 🚀 Quick start
 
@@ -70,7 +78,7 @@ cd researchloop
 pip install -e ".[dev]"
 ```
 
-Point it at any OpenAI-compatible model:
+Point it at any OpenAI-compatible model (or put these lines in a `.env` file):
 
 ```bash
 export RESEARCHLOOP_API_KEY=sk-...
@@ -84,34 +92,44 @@ export RESEARCHLOOP_BASE_URL=https://api.openai.com/v1     # or your provider's 
 researchloop run "Are heat pumps worth it in cold climates?" --corpus examples/corpus
 ```
 
-**Web**: search with [Tavily](https://tavily.com):
+**Web**: search with [Tavily](https://tavily.com); the top hits of each query are fetched in full:
 
 ```bash
 export TAVILY_API_KEY=tvly-...
 researchloop run "What changed in EU AI regulation in 2025?" --critic
 ```
 
-The report is written to `reports/<run_id>.md`, with a **Sources** section listing every cited evidence id.
+The report is written to `reports/<run_id>.md`, with a **Sources** section listing every cited evidence id and a **Limitations** section for anything that could not be verified.
 
-### Inspect, resume, list
+### Inspect and control runs
 
 ```bash
-researchloop show <run_id>                              # event timeline: plan, tool calls, verify, replan…
-researchloop resume <run_id> --corpus examples/corpus   # continue after a crash or halt
-researchloop resume <run_id> --max-tokens 500000        # …or with a bigger budget
+researchloop show <run_id>                   # event timeline + metrics per LLM purpose, stage and tool
 researchloop list
+
+researchloop run "..." --approve-plan        # stop after planning; prints the proposed DAG
+researchloop approve <run_id> [--plan edited.json]
+researchloop resume <run_id>                 # continue after approval, a pause, a halt or a crash
+
+researchloop pause <run_id>                  # applied at the next step boundary
+researchloop cancel <run_id>
+
+researchloop run "..." --webhook https://hooks.example/report   # deliver the finished report
+researchloop resolve <run_id>                                    # list interrupted side-effecting calls
+researchloop resolve <run_id> <key> --outcome done|retry         # reconcile one of them
 ```
 
 <details>
-<summary><b>All options</b></summary>
+<summary><b>All run options</b></summary>
 
 | Option | Default | Meaning |
 |---|---|---|
-| `--corpus DIR` | — | Search local files instead of the web |
+| `--corpus DIR` | `$RESEARCHLOOP_CORPUS` | Search local files instead of the web |
 | `--max-tasks` | 5 | Sub-questions in the initial plan |
 | `--concurrency` | 3 | Tasks researched in parallel |
+| `--fetch-pages` | 2 | Web hits per query fetched in full |
 | `--max-tokens` | 250,000 | Token budget for the whole run |
-| `--max-tool-calls` | 60 | Search budget |
+| `--max-tool-calls` | 60 | Tool call budget (searches and fetches) |
 | `--max-minutes` | 30 | Wall-clock budget (summed across resumes) |
 | `--max-replans` | 2 | Extra research rounds for evidence gaps |
 | `--critic` | off | Ask the LLM to review the report for missing aspects |
@@ -129,11 +147,16 @@ researchloop serve --corpus examples/corpus            # API + embedded worker o
 
 | Endpoint | |
 |---|---|
-| `POST /runs` `{"question": "..."}` | Queue a run (202) |
-| `GET /runs/{id}` | Status, tasks, evidence count, usage |
+| `POST /runs` `{"question", "approve_plan"?, "webhook_url"?}` | Queue a run (202) |
+| `GET /runs/{id}` | Status, tasks, evidence count, usage, delivery |
 | `GET /runs/{id}/events` | Live Server-Sent Events; reconnect with `Last-Event-ID` to resume the stream |
 | `GET /runs/{id}/report` | The Markdown report once the run is done |
-| `POST /runs/{id}/resume` | Re-queue a run halted by its budget |
+| `GET /runs/{id}/metrics` | LLM usage per purpose, tool calls and cache hits, time per stage, faithfulness |
+| `POST /runs/{id}/pause` · `/cancel` · `/resume` | Human control |
+| `POST /runs/{id}/plan/approve` `{"tasks"?}` | Approve the proposed plan, or replace it with an edited DAG |
+| `GET /runs/{id}/tool-calls/pending` | Side-effecting calls interrupted mid-flight |
+| `POST /runs/{id}/tool-calls/{key}/resolve` `{"outcome": "done" \| "retry"}` | Reconcile one |
+| `GET /metrics` `?format=prometheus` | Aggregates across runs (status counts, P50/P95, cache hit rate, faithfulness) |
 
 Interactive docs are served at `/docs`.
 
@@ -154,11 +177,11 @@ docker compose up --build
 
 ```mermaid
 flowchart LR
-    C([Client]) -->|POST /runs · SSE| A[FastAPI]
-    A -->|enqueue| DB[(SQLite · WAL<br/>runs · leases · events · tool cache)]
+    C([Client]) -->|POST /runs · SSE · control| A[FastAPI]
+    A -->|enqueue · control flags| DB[(SQLite · WAL<br/>runs · leases · events · tool intents)]
     W1[Worker 1] <-->|claim · heartbeat · fenced checkpoints| DB
     W2[Worker 2] <-->|claim · heartbeat · fenced checkpoints| DB
-    W1 & W2 --> LLM[[LLM]] & S[[Search]]
+    W1 & W2 --> LLM[[LLM]] & S[[Search · Fetch]] & H[[Webhook]]
 ```
 
 <details>
@@ -176,6 +199,24 @@ SQLite in WAL mode is safe for several processes on one host (one Docker volume)
 
 </details>
 
+<details>
+<summary><b>How the tool layer handles crashes</b></summary>
+
+<br>
+
+Every tool declares whether it has side effects and whether its receiver deduplicates by idempotency key. The runner writes a `pending` intent **before** each call and the result **after** it. On resume:
+
+| Record found | Tool | What happens |
+|---|---|---|
+| `done` | any | The recorded result is replayed; nothing is called |
+| `pending` | read-only (search, fetch) | Called again; a repeat is harmless |
+| `pending` | side effects + idempotency key (webhook) | Called again **with the same key**; the receiver drops the duplicate |
+| `pending` | side effects, no idempotency support | **Not** retried; the run is held as `needs_reconciliation` until a human says whether it happened |
+
+No local bookkeeping can make an external side effect exactly-once on its own: the call and the local write are two separate systems. The intent log makes every possible duplicate *detectable*, and idempotency keys let the receiver make it *harmless*.
+
+</details>
+
 ### Use as a library
 
 ```python
@@ -187,6 +228,8 @@ runtime = ResearchRuntime(
     LocalCorpusSearch("examples/corpus"),
     RunStore("runs.db"),
     budget=Budget(max_tokens=100_000),
+    judge_llm=None,          # or a separate (stronger) model for the faithfulness judge
+    report_mode="sections",  # or "single" for the one-shot baseline
 )
 result = asyncio.run(runtime.start("Are heat pumps worth it in cold climates?"))
 print(result.status, result.markdown)
@@ -198,47 +241,60 @@ print(result.status, result.markdown)
 pytest
 ```
 
-The suite uses a scripted LLM and a fake search provider, so it runs offline in about two seconds. It covers the scenarios that matter for an agent runtime: parallel waves, dependency hand-off, citation repair, replanning after evidence gaps, one task failing without killing its siblings, **resuming after a hard crash without repeating searches**, halting on budget and resuming with a larger one, HTTP retry/fallback behaviour of the LLM client, the HTTP API and SSE stream, two workers splitting a queue with each run executed once, takeover of an orphaned run, and **a stalled worker being fenced off after another worker takes over its run**.
+80 tests, using a scripted LLM and a fake search provider, run offline in a few seconds. They cover:
 
-CI also runs a **deployment drill** ([`evals/deploy_drill.sh`](evals/deploy_drill.sh)): an API and two worker processes against a mock OpenAI-compatible server, with one worker `SIGKILL`ed while it holds a lease. It checks that every run still finishes exactly once. A separate job builds the Docker image and completes a run inside the container.
+- **Planning and repair**: parallel waves, dependency hand-off, citation repair, replanning after evidence gaps, one task failing without killing its siblings.
+- **Faithfulness**: claim extraction (including Chinese text and trailing citations), judge fail-closed behaviour, and repair of only the section holding a bad claim.
+- **Context engineering**: outline coverage repair, per-section evidence routing, condensing over-budget evidence.
+- **Crash recovery**: resuming after a hard crash without repeating searches, budget halt and resume.
+- **Workers and leases**: two workers splitting a queue, orphaned-run takeover, and **a stalled worker fenced off after another worker takes over**.
+- **Human control**: cancel, pause and resume, plan approval with edited DAGs.
+- **Tool layer**: replay, retry with the same key, reconciliation holds, page fetching, idempotent delivery.
+- **API, SSE and metrics**.
+
+CI also runs a **deployment drill** ([`evals/deploy_drill.sh`](evals/deploy_drill.sh)): an API and two worker processes against a mock OpenAI-compatible server, with one worker `SIGKILL`ed while it holds a lease; every run must still finish exactly once. A separate job builds the Docker image and completes a run inside the container.
 
 ## 💥 Crash-recovery benchmark
 
-[`evals/crash_recovery.py`](evals/crash_recovery.py) hard-kills (`SIGKILL`) a worker process at **every** LLM call, search call and checkpoint write of a scripted run. The run includes one report repair and one replan, so all four stages are exercised. Fresh processes then resume the run: each one first waits for the killed process's lease to expire, then takes the run over with a new fencing token. Every executed search is written to an fsync'ed side-effect log, so duplicates are counted across processes.
+[`evals/crash_recovery.py`](evals/crash_recovery.py) hard-kills (`SIGKILL`) a worker process at **every** LLM call, search call, checkpoint write and webhook delivery of a scripted run. The run includes a section repair, a replan and delivery of the report to a webhook, so every stage is exercised. Fresh processes then resume the run: each one waits for the killed process's lease to expire and takes the run over with a new fencing token. Every executed search and every webhook send is written to an fsync'ed side-effect log, so duplicates are counted across processes. The simulated receiver honors `Idempotency-Key`, as Stripe-style APIs do.
 
-| Scenario | Crashed runs | Recovered | Report byte-identical to uncrashed run | Runs with a duplicate search |
-|---|--:|--:|--:|--:|
-| Kill before an LLM call | 12 | 12/12 | 12/12 | 0 |
-| Kill before a search | 8 | 8/8 | 8/8 | 0 |
-| Kill before a checkpoint write | 12 | 12/12 | 12/12 | 0 |
-| Kill **after** a search, before its result is cached | 8 | 8/8 | 8/8 | 8 |
-| **All single crashes** | **40** | **40/40** | **40/40** | 8 |
-| 2–3 crashes in the same run (random) | 30 | 30/30 | 30/30 | 14 |
+| Scenario | Crashed runs | Recovered | Report byte-identical to uncrashed run | Runs with a repeated search | Report delivered exactly once |
+|---|--:|--:|--:|--:|--:|
+| Kill before an LLM call | 21 | 21/21 | 21/21 | 0 | 21/21 |
+| Kill before a search | 8 | 8/8 | 8/8 | 0 | 8/8 |
+| Kill **after** a search, before its result is recorded | 8 | 8/8 | 8/8 | 8 | 8/8 |
+| Kill before a checkpoint write | 13 | 13/13 | 13/13 | 0 | 13/13 |
+| Kill before / **after** the webhook POST | 2 | 2/2 | 2/2 | 0 | 2/2 (1 re-send, deduplicated) |
+| **All single crashes** | **52** | **52/52** | **52/52** | 8 | **52/52** |
+| 2–3 crashes in the same run (random) | 30 | 30/30 | 30/30 | 5 | 30/30 (9 re-sends, deduplicated) |
 
-On average, recovery re-executes **1.0 LLM call** per crash (3.2 when a run crashes 2–3 times).
+On average, recovery re-executes **1.3 LLM calls** per crash (2.0 when a run crashes 2–3 times).
 
-**Limitation, by design:** tool calls are *at-least-once*, not exactly-once. If the process dies after a search has run but before its result reaches the cache, that search runs again on resume. No local bookkeeping can close this window, because the side effect and the cache write are two separate systems. Exactly-once would need the external service to accept an idempotency key. For read-only search a repeat is harmless; any future tool with side effects would need that key.
+**What the numbers mean:** read-only searches are *at-least-once*: a crash between a search and the recording of its result repeats that search, which is harmless. The side-effecting delivery is also sent again after such a crash, but with the same idempotency key, so the receiver processes it **exactly once in 82/82 crashed runs**. Replacing the stable key with a random one makes the same benchmark report a duplicate delivery. Usage counters (tokens, calls) are checkpointed with the run, so work done after the last checkpoint of a crashed process is not counted.
 
 ```bash
-python evals/crash_recovery.py    # 71 scenarios, ~1 min; writes evals/results/
+python evals/crash_recovery.py    # 83 scenarios, ~1 min; writes evals/results/
 ```
 
 ## 🗂️ Layout
 
 ```text
 src/researchloop/
-├── runtime.py     # the Plan → Execute → Report → Verify state machine
-├── planner.py     # task DAG planning and replanning, with self-correction
-├── executor.py    # per-task research, concurrent waves, idempotent tool cache
-├── reporter.py    # evidence routing, cited report writing, Markdown rendering
-├── verifier.py    # deterministic checks + optional LLM critic
-├── ledger.py      # deduplicating evidence ledger
-├── budget.py      # budgets and the metered LLM wrapper
-├── store.py       # SQLite checkpoints, leases + fencing, event log, tool-call cache
-├── worker.py      # claims unowned runs and drives them
-├── server.py      # FastAPI app: runs, SSE events, reports
-├── search.py      # local BM25 corpus and Tavily web search
-├── llm.py         # OpenAI-compatible client, robust JSON extraction
+├── runtime.py       # the Plan → Execute → Report → Verify → Deliver state machine, human control
+├── planner.py       # task DAG planning and replanning, with self-correction
+├── executor.py      # per-task research, concurrent waves, page enrichment
+├── tools.py         # tool runner with write-ahead intents; search, fetch and webhook tools
+├── reporter.py      # outline, per-section evidence routing, condensing, targeted repair
+├── faithfulness.py  # claim extraction and the claim-vs-evidence judge
+├── verifier.py      # deterministic checks + optional LLM critic
+├── ledger.py        # deduplicating evidence ledger
+├── budget.py        # budgets and the metered LLM wrapper
+├── metrics.py       # per-run metrics, aggregation, Prometheus rendering
+├── store.py         # SQLite: checkpoints, leases + fencing, control flags, events, tool intents
+├── worker.py        # claims unowned runs and drives them
+├── server.py        # FastAPI app
+├── search.py        # local BM25 corpus and Tavily web search
+├── llm.py           # OpenAI-compatible client, robust JSON extraction
 ├── prompts.py
 └── cli.py
 evals/
@@ -250,14 +306,14 @@ Dockerfile · docker-compose.yml
 
 ## 🗺️ Roadmap
 
+- [ ] Evaluation on a fixed corpus with real models: faithfulness detection rate, support rate with and without the claim judge, sectioned vs. single-shot token cost
+- [ ] Novelty-based early stopping for research rounds
+- [ ] Contradiction detection across sources
 - [ ] Postgres store (`FOR UPDATE SKIP LOCKED`) for workers on several hosts
-- [ ] Fetch and chunk full web pages instead of relying on search snippets
-- [ ] Embedding-based retrieval for local corpora
-- [ ] Evaluation harness comparing reports with and without the verify loop
 
 ## 🙏 Acknowledgements
 
-The overall design, with a resumable harness, an evidence ledger and a completion check that gates the final report, was inspired by the architecture described in [SichengLong26/deepresearch_agent_harness](https://github.com/SichengLong26/deepresearch_agent_harness). researchloop is an independent, from-scratch implementation with a much smaller scope: a library, CLI and HTTP API, with no web UI, knowledge graph or skill system.
+The overall design, with a resumable harness, an evidence ledger and a completion check that gates the final report, was inspired by the architecture described in [SichengLong26/deepresearch_agent_harness](https://github.com/SichengLong26/deepresearch_agent_harness). researchloop is an independent, from-scratch implementation with a different scope: a library, CLI and HTTP API, with no web UI, knowledge graph or skill system. Its claim-level faithfulness judge targets a gap the original's own documentation names: its claim-support metric is a deterministic proxy, not a semantic check.
 
 ## 📄 License
 

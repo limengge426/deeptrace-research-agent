@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import time
-from dataclasses import asdict
 
 from . import prompts
 from .budget import BudgetExceeded, BudgetMeter
@@ -13,6 +11,10 @@ from .llm import LLM, LLMFormatError, parse_json_object
 from .models import CITATION_RE, Finding, Task
 from .search import SearchHit, SearchProvider
 from .store import RunStore
+from .tools import FetchPageTool, SearchTool, ToolOutcomeUnknown, ToolRunner, best_passages
+
+# Errors that must stop the whole wave instead of failing one task.
+_RUN_LEVEL = (BudgetExceeded, ToolOutcomeUnknown)
 
 
 class TaskExecutor:
@@ -28,9 +30,15 @@ class TaskExecutor:
         queries_per_task: int = 2,
         hits_per_query: int = 4,
         concurrency: int = 3,
+        fetch: FetchPageTool | None = None,
+        fetch_pages: int = 0,
     ) -> None:
         self.llm = llm
         self.search = search
+        self.search_tool = SearchTool(search)
+        self.fetch = fetch
+        self.fetch_pages = fetch_pages if fetch else 0
+        self.tools = ToolRunner(store, meter, run_id)
         self.ledger = ledger
         self.store = store
         self.meter = meter
@@ -49,7 +57,7 @@ class TaskExecutor:
         results = await asyncio.gather(*(self._guarded(t, findings) for t in wave), return_exceptions=True)
         for result in results:
             # Raise before touching task state so the last checkpoint stays consistent.
-            if isinstance(result, BudgetExceeded):
+            if isinstance(result, _RUN_LEVEL):
                 raise result
         out: dict[str, Finding] = {}
         for task, result in zip(wave, results):
@@ -73,7 +81,10 @@ class TaskExecutor:
 
         evidence_ids: list[str] = []
         for query in queries:
-            for hit in await self._search(query):
+            hits = await self._search(query)
+            if self.fetch_pages:
+                hits = await self._enrich(hits, f"{query} {task.question}")
+            for hit in hits:
                 ev = self.ledger.add(hit, task_id=task.id, query=query)
                 if ev.id not in evidence_ids:
                     evidence_ids.append(ev.id)
@@ -98,28 +109,30 @@ class TaskExecutor:
         return queries[: self.queries_per_task] or [task.question]
 
     async def _search(self, query: str) -> list[SearchHit]:
-        """Search with an idempotent cache: a resumed run replays results instead of re-querying."""
-        args = {"query": query, "k": self.hits_per_query}
-        key = RunStore.tool_key(self.run_id, self.search.name, args)
-        cached = self.store.cached(key)
-        if cached is not None:
-            self.meter.metrics.record_tool(self.search.name, cached=True)
-            return [SearchHit(**h) for h in cached]
-        self.meter.charge_tool_call()
-        started = time.monotonic()
-        try:
-            hits = await self.search.search(query, self.hits_per_query)
-        except Exception:
-            self.meter.metrics.record_tool(self.search.name, cached=False, seconds=time.monotonic() - started,
-                                           error=True)
-            raise
-        self.meter.metrics.record_tool(self.search.name, cached=False, seconds=time.monotonic() - started)
-        self.store.cache(key, self.run_id, [asdict(h) for h in hits])
-        self.store.log(self.run_id, "tool_call", tool=self.search.name, query=query, hits=len(hits))
-        return hits
+        """Search through the tool runner: a resumed run replays results instead of re-querying."""
+        raw = await self.tools.call(self.search_tool, {"query": query, "k": self.hits_per_query})
+        return [SearchHit(**h) for h in raw]
+
+    async def _enrich(self, hits: list[SearchHit], focus: str) -> list[SearchHit]:
+        """Replace thin search snippets of the top web hits with the most relevant passages of the page."""
+        out = list(hits)
+        for i, hit in enumerate(hits[: self.fetch_pages]):
+            if not hit.url.startswith(("http://", "https://")):
+                continue
+            try:
+                page = await self.tools.call(self.fetch, {"url": hit.url})
+            except _RUN_LEVEL:
+                raise
+            except Exception as exc:  # noqa: BLE001 - an unreachable page keeps its snippet
+                self.store.log(self.run_id, "fetch_failed", url=hit.url, error=f"{type(exc).__name__}: {exc}")
+                continue
+            passages = best_passages(page["text"], focus)
+            if passages:
+                out[i] = SearchHit(hit.url, hit.title or page["title"], f"{hit.content}\n\n{passages}".strip())
+        return out
 
     async def _summarize(self, task: Task, evidence_ids: list[str]) -> Finding:
-        user = f"Sub-question: {task.question}\n\nEvidence:\n{self.ledger.cards(evidence_ids)}"
+        user = f"Sub-question: {task.question}\n\nEvidence:\n{self.ledger.cards(evidence_ids, max_chars=1200)}"
         reply = await self.llm.complete(prompts.FINDING_SYSTEM, user, purpose="finding", json_mode=True)
         data = parse_json_object(reply.text)
         summary = str(data.get("summary", "")).strip()

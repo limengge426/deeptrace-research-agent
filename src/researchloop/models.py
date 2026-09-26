@@ -13,7 +13,7 @@ from typing import Any
 CITATION_RE = re.compile(r"\[(E\d+)\]")
 TERMINAL = frozenset({"done", "failed", "cancelled"})
 # Statuses a worker must not pick up: finished, or waiting for a human.
-NOT_CLAIMABLE = ("done", "failed", "cancelled", "halted", "paused", "awaiting_approval")
+NOT_CLAIMABLE = ("done", "failed", "cancelled", "halted", "paused", "awaiting_approval", "needs_reconciliation")
 
 
 class PlanError(ValueError):
@@ -145,10 +145,12 @@ class RunState:
     usage: dict[str, float] = field(default_factory=dict)
     error: str | None = None
     faithfulness: list[dict[str, float]] = field(default_factory=list)  # one summary per judged draft
-    hold: str | None = None  # "paused" | "awaiting_approval": not claimable until released
+    hold: str | None = None  # "paused" | "awaiting_approval" | "needs_reconciliation": not claimable
     approve_plan: bool = False  # stop after planning until a human approves (or edits) the plan
     metrics: dict = field(default_factory=dict)  # see metrics.RunMetrics
     outline: list[dict] = field(default_factory=list)  # [{"heading", "tasks", "synthesis"}] for the report
+    deliver_to: str | None = None  # webhook URL that receives the finished report
+    delivery: dict | None = None  # outcome of the delivery attempt
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -174,6 +176,8 @@ class RunState:
             approve_plan=bool(data.get("approve_plan", False)),
             metrics=dict(data.get("metrics", {})),
             outline=list(data.get("outline", [])),
+            deliver_to=data.get("deliver_to"),
+            delivery=data.get("delivery"),
         )
 
     @property

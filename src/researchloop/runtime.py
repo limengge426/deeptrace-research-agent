@@ -27,6 +27,7 @@ from .llm import LLM
 from .models import TERMINAL, Plan, PlanError, RunState, Task
 from .search import SearchProvider
 from .store import Lease, LeaseLost, RunStore
+from .tools import FetchPageTool, Tool, ToolOutcomeUnknown, ToolRunner, WebhookTool
 
 class RunLocked(RuntimeError):
     """Another live worker holds this run's lease."""
@@ -85,6 +86,10 @@ class ResearchRuntime:
         judge_llm: LLM | None = None,
         report_mode: str = "sections",
         context_budget: reporter.ContextBudget | None = None,
+        fetch: FetchPageTool | None = None,
+        fetch_pages: int = 2,
+        webhook: Tool | None = None,
+        delivery_retries: int = 3,
     ) -> None:
         self.llm = llm
         self.search = search
@@ -104,17 +109,22 @@ class ResearchRuntime:
             raise ValueError("report_mode must be 'sections' or 'single'")
         self.report_mode = report_mode
         self.context_budget = context_budget or reporter.ContextBudget()
+        self.fetch = fetch  # page fetching is used for web search hits only (http/https URLs)
+        self.fetch_pages = fetch_pages
+        self.webhook = webhook
+        self.delivery_retries = delivery_retries
 
     # -- public API --------------------------------------------------------
 
-    def create(self, question: str, *, approve_plan: bool = False) -> str:
+    def create(self, question: str, *, approve_plan: bool = False, deliver_to: str | None = None) -> str:
         """Register a run without executing it; any worker can then claim it."""
-        run_id = self.store.create_run(RunState(question=question, approve_plan=approve_plan))
-        self.store.log(run_id, "run_created", question=question, approve_plan=approve_plan)
+        run_id = self.store.create_run(RunState(question=question, approve_plan=approve_plan, deliver_to=deliver_to))
+        self.store.log(run_id, "run_created", question=question, approve_plan=approve_plan,
+                       deliver=bool(deliver_to))
         return run_id
 
-    async def start(self, question: str, *, approve_plan: bool = False) -> RunResult:
-        return await self.resume(self.create(question, approve_plan=approve_plan))
+    async def start(self, question: str, *, approve_plan: bool = False, deliver_to: str | None = None) -> RunResult:
+        return await self.resume(self.create(question, approve_plan=approve_plan, deliver_to=deliver_to))
 
     # -- human control -----------------------------------------------------
 
@@ -190,6 +200,28 @@ class ResearchRuntime:
                        tasks=[{"id": t.id, "q": t.question, "deps": t.depends_on} for t in state.plan.tasks])
         return state
 
+    def resolve_tool_call(self, run_id: str, key: str, outcome: str) -> str:
+        """Reconcile an interrupted side-effecting call a human has checked.
+
+        ``outcome="done"``: it did happen; record it so it is never repeated.
+        ``outcome="retry"``: it did not happen; the run will call it again.
+        """
+        state = self.store.load(run_id)
+        pending = {c["key"]: c for c in self.store.pending_tool_calls(run_id)}
+        if state.hold != "needs_reconciliation" or key not in pending:
+            raise InvalidAction("no interrupted tool call with that key is waiting for reconciliation")
+        if outcome == "done":
+            self.store.finish_tool_call(key, {"resolved": "confirmed by a human"})
+        elif outcome == "retry":
+            self.store.discard_tool_call(key)
+        else:
+            raise InvalidAction('outcome must be "done" or "retry"')
+        self.store.log(run_id, "tool_call_resolved", tool=pending[key]["tool"], key=key[:12], outcome=outcome)
+        if not self.store.pending_tool_calls(run_id):
+            state.hold, state.error = None, None
+            self.store.checkpoint(run_id, state, status=state.status)
+        return self.store.load(run_id).status
+
     # -- driving -------------------------------------------------------------
 
     async def resume(self, run_id: str) -> RunResult:
@@ -260,6 +292,8 @@ class ResearchRuntime:
             queries_per_task=self.queries_per_task,
             hits_per_query=self.hits_per_query,
             concurrency=self.concurrency,
+            fetch=self.fetch,
+            fetch_pages=self.fetch_pages,
         )
         judge = MeteredLLM(self.judge_llm, meter) if self.judge_llm else llm
         s = _Session(run_id, state, lease, llm, judge, meter, ledger, executor)
@@ -281,6 +315,11 @@ class ResearchRuntime:
             state.error = str(exc)
             self._checkpoint(s)
             self.store.log(run_id, "run_halted", stage=state.stage, reason=str(exc))
+        except ToolOutcomeUnknown as exc:
+            # A side-effecting call may have happened; retrying could repeat it. Ask a human.
+            state.hold, state.error = "needs_reconciliation", str(exc)
+            self._checkpoint(s)
+            self.store.log(run_id, "run_held", status=state.hold, tool=exc.tool, key=exc.key)
         except LeaseLost:
             # Another worker owns the run now; stop without touching its state.
             self.store.log(run_id, "run_abandoned", owner=self.owner, token=lease.token)
@@ -303,11 +342,15 @@ class ResearchRuntime:
         self.store.checkpoint(s.run_id, s.state, status=s.state.status, lease=s.lease)
 
     def _result(self, run_id: str, state: RunState, ledger: EvidenceLedger) -> RunResult:
-        markdown = None
-        if state.stage == "done" and state.report:
-            notes = [i.note or i.detail for i in state.issues if i.code != "unknown_citation"]
-            markdown = reporter.render_markdown(state.report, ledger, notes=notes)
+        markdown = self._markdown(state, ledger) if state.stage == "done" else None
         return RunResult(run_id, state, markdown)
+
+    @staticmethod
+    def _markdown(state: RunState, ledger: EvidenceLedger) -> str | None:
+        if not state.report:
+            return None
+        notes = [i.note or i.detail for i in state.issues if i.code != "unknown_citation"]
+        return reporter.render_markdown(state.report, ledger, notes=notes)
 
     # -- stages ------------------------------------------------------------
 
@@ -398,4 +441,36 @@ class ResearchRuntime:
         # Out of repairs/replans (or nothing left to fix): finish, and surface what is
         # still wrong as limitations rather than pretending the report is flawless.
         state.report = reporter.strip_unknown_citations(state.report, s.ledger)
+        state.stage = "deliver" if state.deliver_to else "done"
+
+    async def _deliver(self, s: _Session) -> None:
+        """POST the finished report to the run's webhook (idempotency-keyed), then finish.
+
+        A delivery that keeps failing is recorded on the run; the report itself is kept.
+        """
+        state = s.state
+        payload = {
+            "run_id": s.run_id,
+            "question": state.question,
+            "title": state.report.title if state.report else state.question,
+            "markdown": self._markdown(state, s.ledger),
+            "sources": [{"id": e.id, "title": e.title, "url": e.url} for e in s.ledger.items()
+                        if state.report and e.id in state.report.citations()],
+        }
+        tool = self.webhook or WebhookTool()
+        runner = ToolRunner(self.store, s.meter, s.run_id)
+        error = None
+        for attempt in range(self.delivery_retries):
+            try:
+                await runner.call(tool, {"url": state.deliver_to, "payload": payload})
+                error = None
+                break
+            except (ToolOutcomeUnknown, BudgetExceeded):
+                raise
+            except Exception as exc:  # noqa: BLE001
+                error = f"{type(exc).__name__}: {exc}"
+                self.store.log(s.run_id, "delivery_failed", attempt=attempt + 1, error=error)
+                await asyncio.sleep(min(2**attempt, 10) * 0.5)
+        state.delivery = {"status": "failed", "error": error} if error else {"status": "delivered"}
+        self.store.log(s.run_id, "delivery", **state.delivery)
         state.stage = "done"

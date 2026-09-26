@@ -50,11 +50,18 @@ CREATE TABLE IF NOT EXISTS controls (
     action TEXT NOT NULL,
     requested_at REAL NOT NULL
 );
-CREATE TABLE IF NOT EXISTS tool_cache (
+CREATE TABLE IF NOT EXISTS tool_calls (
     key TEXT PRIMARY KEY,
     run_id TEXT NOT NULL,
-    result TEXT NOT NULL
+    tool TEXT NOT NULL,
+    args TEXT NOT NULL,
+    status TEXT NOT NULL,          -- pending (intent recorded, outcome unknown) | done
+    result TEXT,
+    attempts INTEGER NOT NULL,
+    started_at REAL NOT NULL,
+    finished_at REAL
 );
+CREATE INDEX IF NOT EXISTS tool_calls_by_run ON tool_calls(run_id, status);
 """
 
 
@@ -262,16 +269,43 @@ class RunStore:
         ).fetchall()
         return [Event(eid, ts, kind, json.loads(payload)) for eid, ts, kind, payload in rows]
 
-    # -- idempotent tool calls ---------------------------------------------
+    # -- tool calls: write-ahead intent log + idempotency cache ------------
 
     @staticmethod
     def tool_key(run_id: str, tool: str, args: dict[str, Any]) -> str:
         blob = json.dumps({"run": run_id, "tool": tool, "args": args}, sort_keys=True)
         return hashlib.sha256(blob.encode()).hexdigest()
 
-    def cached(self, key: str) -> Any | None:
-        row = self._conn.execute("SELECT result FROM tool_cache WHERE key = ?", (key,)).fetchone()
-        return json.loads(row[0]) if row else None
+    def tool_record(self, key: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT tool, status, result, attempts FROM tool_calls WHERE key = ?", (key,)
+        ).fetchone()
+        if row is None:
+            return None
+        return {"tool": row[0], "status": row[1], "result": json.loads(row[2]) if row[2] else None,
+                "attempts": row[3]}
 
-    def cache(self, key: str, run_id: str, result: Any) -> None:
-        self._conn.execute("INSERT OR REPLACE INTO tool_cache VALUES (?, ?, ?)", (key, run_id, json.dumps(result)))
+    def begin_tool_call(self, key: str, run_id: str, tool: str, args: dict[str, Any]) -> None:
+        self._conn.execute(
+            "INSERT INTO tool_calls (key, run_id, tool, args, status, attempts, started_at) "
+            "VALUES (?, ?, ?, ?, 'pending', 1, ?) "
+            "ON CONFLICT(key) DO UPDATE SET attempts = attempts + 1, started_at = excluded.started_at",
+            (key, run_id, tool, json.dumps(args), time.time()),
+        )
+
+    def finish_tool_call(self, key: str, result: Any) -> None:
+        self._conn.execute(
+            "UPDATE tool_calls SET status = 'done', result = ?, finished_at = ? WHERE key = ?",
+            (json.dumps(result), time.time(), key),
+        )
+
+    def discard_tool_call(self, key: str) -> None:
+        self._conn.execute("DELETE FROM tool_calls WHERE key = ? AND status = 'pending'", (key,))
+
+    def pending_tool_calls(self, run_id: str) -> list[dict[str, Any]]:
+        rows = self._conn.execute(
+            "SELECT key, tool, args, attempts, started_at FROM tool_calls WHERE run_id = ? AND status = 'pending'",
+            (run_id,),
+        ).fetchall()
+        return [{"key": k, "tool": t, "args": json.loads(a), "attempts": n, "started_at": ts}
+                for k, t, a, n, ts in rows]

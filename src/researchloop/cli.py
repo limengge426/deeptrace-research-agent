@@ -116,10 +116,12 @@ def build_parser() -> argparse.ArgumentParser:
         p.add_argument("--concurrency", type=int, default=3)
         p.add_argument("--critic", action="store_true", help="add an LLM review for coverage gaps")
         p.add_argument("--lease-ttl", type=float, default=30.0, help="seconds before a dead worker's run is taken over")
+        p.add_argument("--fetch-pages", type=int, default=2, help="web hits per query to fetch in full (web search)")
 
     run = sub.add_parser("run", help="start a new research run", parents=[common])
     run.add_argument("question")
     run.add_argument("--approve-plan", action="store_true", help="stop after planning for human approval")
+    run.add_argument("--webhook", help="POST the finished report to this URL (with an Idempotency-Key header)")
     add_run_options(run)
 
     resume = sub.add_parser("resume", help="continue an interrupted or halted run", parents=[common])
@@ -134,6 +136,11 @@ def build_parser() -> argparse.ArgumentParser:
     for name, text in (("cancel", "cancel a run"), ("pause", "pause a run at its next step boundary")):
         p = sub.add_parser(name, help=text, parents=[common])
         p.add_argument("run_id")
+
+    resolve = sub.add_parser("resolve", help="reconcile an interrupted side-effecting tool call", parents=[common])
+    resolve.add_argument("run_id")
+    resolve.add_argument("key", nargs="?", help="tool call key (omit to list pending calls)")
+    resolve.add_argument("--outcome", choices=("done", "retry"), help="did the interrupted call happen?")
 
     approve = sub.add_parser("approve", help="approve a run's proposed plan", parents=[common])
     approve.add_argument("run_id")
@@ -152,10 +159,15 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _runtime(args: argparse.Namespace, store: RunStore) -> ResearchRuntime:
+    from .tools import FetchPageTool
+
+    search = _search_from_args(args)
     return ResearchRuntime(
         OpenAICompatLLM.from_env(),
-        _search_from_args(args),
+        search,
         store,
+        fetch=FetchPageTool() if isinstance(search, TavilySearch) else None,
+        fetch_pages=args.fetch_pages,
         budget=_budget_from_args(args),
         max_tasks=args.max_tasks,
         concurrency=args.concurrency,
@@ -168,6 +180,8 @@ async def _close(runtime: ResearchRuntime) -> None:
     await runtime.llm.aclose()
     if isinstance(runtime.search, TavilySearch):
         await runtime.search.aclose()
+    if runtime.fetch is not None:
+        await runtime.fetch.aclose()
 
 
 async def _resume_when_free(runtime: ResearchRuntime, run_id: str) -> RunResult:
@@ -187,7 +201,7 @@ async def _run(args: argparse.Namespace, store: RunStore) -> int:
     runtime = _runtime(args, store)
     try:
         if args.command == "run":
-            result = await runtime.start(args.question, approve_plan=args.approve_plan)
+            result = await runtime.start(args.question, approve_plan=args.approve_plan, deliver_to=args.webhook)
         else:
             if store.load(args.run_id).status in ("paused", "halted"):
                 runtime.unpause(args.run_id)
@@ -218,6 +232,12 @@ def _control(args: argparse.Namespace, store: RunStore) -> int:
         if args.command == "approve":
             tasks = json.loads(Path(args.plan).read_text()) if args.plan else None
             status = runtime.approve_plan(args.run_id, tasks).status
+        elif args.command == "resolve":
+            if not args.key or not args.outcome:
+                for call in store.pending_tool_calls(args.run_id):
+                    print(f"{call['key']}  {call['tool']}  attempts={call['attempts']}  args={json.dumps(call['args'])[:120]}")
+                return 0
+            status = runtime.resolve_tool_call(args.run_id, args.key, args.outcome)
         else:
             status = getattr(runtime, args.command)(args.run_id)
     except (InvalidAction, KeyError) as exc:
@@ -248,7 +268,7 @@ def main(argv: list[str] | None = None) -> int:
             return _show(store, args.run_id)
         if args.command == "list":
             return _list(store)
-        if args.command in ("cancel", "pause", "approve"):
+        if args.command in ("cancel", "pause", "approve", "resolve"):
             return _control(args, store)
         if args.command == "serve":
             return _serve(args, store)

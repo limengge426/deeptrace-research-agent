@@ -27,12 +27,17 @@ from .worker import Worker
 class RunRequest(BaseModel):
     question: str = Field(min_length=3, max_length=2000)
     approve_plan: bool = Field(False, description="pause after planning until the plan is approved")
+    webhook_url: str | None = Field(None, pattern=r"^https?://", description="receives the finished report")
 
 
 class PlanTask(BaseModel):
     id: str
     question: str = Field(min_length=3)
     depends_on: list[str] = []
+
+
+class Resolution(BaseModel):
+    outcome: str = Field(pattern="^(done|retry)$", description="did the interrupted call happen?")
 
 
 class PlanApproval(BaseModel):
@@ -57,6 +62,7 @@ class RunView(BaseModel):
     replans: int
     repairs: int
     usage: dict[str, float]
+    delivery: dict | None = None
 
 
 def create_app(runtime: ResearchRuntime, *, embedded_worker: bool = True, poll_interval: float = 1.0) -> FastAPI:
@@ -92,6 +98,7 @@ def create_app(runtime: ResearchRuntime, *, embedded_worker: bool = True, poll_i
             replans=state.replans,
             repairs=state.repairs,
             usage=state.usage,
+            delivery=state.delivery,
         )
 
     @app.get("/health")
@@ -100,7 +107,7 @@ def create_app(runtime: ResearchRuntime, *, embedded_worker: bool = True, poll_i
 
     @app.post("/runs", status_code=202)
     async def submit(req: RunRequest) -> RunView:
-        return view(runtime.create(req.question, approve_plan=req.approve_plan))
+        return view(runtime.create(req.question, approve_plan=req.approve_plan, deliver_to=req.webhook_url))
 
     def act(run_id: str, action) -> RunView:
         view(run_id)  # 404 for unknown runs
@@ -153,6 +160,16 @@ def create_app(runtime: ResearchRuntime, *, embedded_worker: bool = True, poll_i
             raise HTTPException(409, f"run is {current.status}; no report yet")
         return result.markdown
 
+    @app.get("/runs/{run_id}/tool-calls/pending")
+    async def pending_tool_calls(run_id: str) -> list[dict]:
+        """Tool calls whose outcome is unknown because the process died mid-call."""
+        view(run_id)
+        return store.pending_tool_calls(run_id)
+
+    @app.post("/runs/{run_id}/tool-calls/{key}/resolve", status_code=202)
+    async def resolve_tool_call(run_id: str, key: str, body: Resolution) -> RunView:
+        return act(run_id, lambda: runtime.resolve_tool_call(run_id, key, body.outcome))
+
     @app.post("/runs/{run_id}/resume", status_code=202)
     async def resume(run_id: str) -> RunView:
         """Release a paused or budget-halted run. Crashed runs are picked up automatically."""
@@ -176,7 +193,7 @@ def create_app(runtime: ResearchRuntime, *, embedded_worker: bool = True, poll_i
                     payload = json.dumps({"ts": ev.ts, **ev.payload}, ensure_ascii=False)
                     yield f"id: {ev.id}\nevent: {ev.kind}\ndata: {payload}\n\n"
                 status = store.status(run_id)
-                if status in TERMINAL or status in ("halted", "paused", "awaiting_approval"):
+                if status in TERMINAL or status in ("halted", "paused", "awaiting_approval", "needs_reconciliation"):
                     if not store.events(run_id, after=cursor):
                         yield f"event: end\ndata: {json.dumps({'status': status})}\n\n"
                         return
@@ -195,12 +212,15 @@ def app_from_env() -> FastAPI:
     from .search import LocalCorpusSearch, TavilySearch
     from .store import RunStore
 
+    from .tools import FetchPageTool
+
     corpus = os.getenv("RESEARCHLOOP_CORPUS")
     runtime = ResearchRuntime(
         OpenAICompatLLM.from_env(),
         LocalCorpusSearch(corpus) if corpus else TavilySearch(),
         RunStore(os.getenv("RESEARCHLOOP_DB", "researchloop.db")),
         budget=Budget(max_tokens=int(os.getenv("RESEARCHLOOP_MAX_TOKENS", "250000"))),
+        fetch=None if corpus else FetchPageTool(),
     )
     embedded = os.getenv("RESEARCHLOOP_EMBEDDED_WORKER", "1") != "0"
     return create_app(runtime, embedded_worker=embedded)

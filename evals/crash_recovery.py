@@ -7,6 +7,8 @@ scripted LLM and search provider, and SIGKILLs itself at one injection point:
   search:k       right before the k-th search call
   search-post:k  right after the k-th search ran, before its result is cached
   checkpoint:k   right before the k-th checkpoint write
+  webhook:k      right before the finished report is POSTed to the run's webhook
+  webhook-post:k right after the webhook POST, before its result is recorded
 
 Fresh worker processes then resume the run until it finishes. The killed
 process never releases its lease, so each recovery first waits for that lease
@@ -14,9 +16,12 @@ to expire (TTL 0.3 s here) and then takes the run over with a new fencing token.
 actually executes is appended (and fsync'ed) to a side-effect log, so duplicate
 side effects can be counted across processes.
 
-The scripted scenario exercises all four stages, including one report repair
-(the first draft cites a non-existent source) and one replan (one sub-question
-returns no search results).
+The scripted scenario exercises every stage, including one report repair (the
+first draft of one section cites a non-existent source), one replan (one
+sub-question returns no search results) and delivery of the finished report to
+a webhook. The simulated receiver honors the Idempotency-Key header the way
+Stripe-style APIs do, so both raw sends and effective (deduplicated) deliveries
+are counted.
 
     python evals/crash_recovery.py            # run the benchmark, write results
     python evals/crash_recovery.py --quick    # every 3rd injection point only
@@ -47,7 +52,8 @@ from researchloop.store import RunStore as _Store  # noqa: E402
 from tests import fakes  # noqa: E402
 
 QUESTION = "Are heat pumps worth it in cold climates?"
-KINDS = ("llm", "search", "search-post", "checkpoint")
+KINDS = ("llm", "search", "search-post", "checkpoint", "webhook", "webhook-post")
+WEBHOOK_URL = "https://hooks.example/report"
 LEASE_TTL = 0.3
 EXIT_LOCKED = 3
 
@@ -55,10 +61,10 @@ EXIT_LOCKED = 3
 # -- worker (runs in a child process) ---------------------------------------
 
 
-def _report_with_one_bad_draft(system: str, user: str) -> dict:
-    out = fakes.report(system, user)
-    if "failed verification" not in user:  # first draft: cite a source that does not exist
-        out["sections"][0]["body"] += " See also [E999]."
+def _section_with_one_bad_draft(system: str, user: str) -> dict:
+    out = fakes.section(system, user)
+    if "failed verification" not in user and "Section: About t1" in user:
+        out["body"] += " See also [E999]."  # first draft: cite a source that does not exist
     return out
 
 
@@ -85,12 +91,14 @@ def _append(path: Path, record: dict) -> None:
 def _stage_of(purpose: str, user: str) -> str:
     if purpose == "plan":
         return "verify" if "verifier found these gaps" in user else "plan"
-    return {"queries": "execute", "finding": "execute", "report": "report"}.get(purpose, "verify")
+    if purpose in ("queries", "finding"):
+        return "execute"
+    return "report" if purpose in ("outline", "section", "synthesis", "digest", "report") else "verify"
 
 
 class InjectingLLM(fakes.ScriptedLLM):
     def __init__(self, injector: Injector) -> None:
-        super().__init__(report=_report_with_one_bad_draft)
+        super().__init__(section=_section_with_one_bad_draft)
         self.injector = injector
 
     async def complete(self, system, user, *, purpose, json_mode=False):
@@ -113,6 +121,22 @@ class InjectingSearch(fakes.FakeSearch):
         return hits
 
 
+class InjectingWebhook:
+    """Records every POST it sends; the receiver deduplicates by Idempotency-Key."""
+
+    name, side_effects, idempotent = "webhook", True, True
+
+    def __init__(self, injector: Injector, side_effects: Path) -> None:
+        self.injector = injector
+        self.log = side_effects
+
+    async def __call__(self, args, *, idempotency_key):
+        self.injector.hit("webhook", "deliver")
+        _append(self.log, {"webhook_key": idempotency_key, "pid": os.getpid()})
+        self.injector.hit("webhook-post", "deliver")
+        return {"status_code": 200}
+
+
 class InjectingStore(_Store):
     injector: Injector
 
@@ -130,12 +154,13 @@ def worker(args: argparse.Namespace) -> None:
     store.injector = injector
     llm = InjectingLLM(injector)
     runtime = ResearchRuntime(
-        llm, InjectingSearch(injector, work / "side_effects.jsonl"), store, lease_ttl=LEASE_TTL
+        llm, InjectingSearch(injector, work / "side_effects.jsonl"), store, lease_ttl=LEASE_TTL,
+        webhook=InjectingWebhook(injector, work / "side_effects.jsonl"),
     )
 
     runs = store.runs()
     try:
-        result = asyncio.run(runtime.resume(runs[0].id) if runs else runtime.start(QUESTION))
+        result = asyncio.run(runtime.resume(runs[0].id) if runs else runtime.start(QUESTION, deliver_to=WEBHOOK_URL))
     except RunLocked:
         raise SystemExit(EXIT_LOCKED)  # the killed process's lease has not expired yet
     _append(
@@ -188,7 +213,9 @@ def run_scenario(kills: list[str | None], max_processes: int = 8) -> dict:
                 return {"error": f"worker exited with {code}", "processes": processes}
             break
         trace = _read(work / "trace.jsonl")
-        side_effects = Counter(r["query"] for r in _read(work / "side_effects.jsonl"))
+        records = _read(work / "side_effects.jsonl")
+        side_effects = Counter(r["query"] for r in records if "query" in r)
+        deliveries = [r["webhook_key"] for r in records if "webhook_key" in r]
         finished = [t for t in trace if "finished" in t]
         llm_calls = len(_read(work / "llm_calls.jsonl"))
         return {
@@ -201,6 +228,8 @@ def run_scenario(kills: list[str | None], max_processes: int = 8) -> dict:
             "llm_calls": llm_calls,
             "searches": sum(side_effects.values()),
             "duplicate_searches": sum(n - 1 for n in side_effects.values() if n > 1),
+            "webhook_sends": len(deliveries),
+            "webhook_effective": len(set(deliveries)),  # what an Idempotency-Key-honoring receiver processes
         }
 
 
@@ -212,9 +241,10 @@ def _count_sites() -> Counter[str]:
         store = InjectingStore(work / "runs.db")
         store.injector = injector
         runtime = ResearchRuntime(
-            InjectingLLM(injector), InjectingSearch(injector, work / "se.jsonl"), store, lease_ttl=LEASE_TTL
+            InjectingLLM(injector), InjectingSearch(injector, work / "se.jsonl"), store, lease_ttl=LEASE_TTL,
+            webhook=InjectingWebhook(injector, work / "se.jsonl"),
         )
-        asyncio.run(runtime.start(QUESTION))
+        asyncio.run(runtime.start(QUESTION, deliver_to=WEBHOOK_URL))
         store.close()
         return injector.counts
 
@@ -246,7 +276,8 @@ def main() -> None:
             r["kind"] = kind
             single.append(r)
             print(f"  {kind}:{k:<3} stage={r['kills'][0]['stage'] if r['kills'] else '-':8} "
-                  f"status={r['status']} dup={r['duplicate_searches']}")
+                  f"status={r['status']} dup={r['duplicate_searches']} "
+                  f"sends={r['webhook_sends']} effective={r['webhook_effective']}")
 
     rng = random.Random(args.seed)
     multi = []
@@ -278,9 +309,12 @@ def summarize(results: dict) -> str:
         same = sum(r["report_sha"] == base["report_sha"] for r in crashed)
         dups = sum(r["duplicate_searches"] for r in crashed)
         with_dup = sum(r["duplicate_searches"] > 0 for r in crashed)
+        resent = sum(r["webhook_sends"] > 1 for r in crashed)
+        effective_ok = sum(r["webhook_effective"] == 1 for r in crashed)
         extra_llm = sum(r["llm_calls"] - base["llm_calls"] for r in crashed)
         return (f"| {label} | {len(crashed)} | {ok}/{len(crashed)} | {same}/{len(crashed)} | "
-                f"{with_dup} ({dups} total) | {extra_llm / max(len(crashed), 1):.1f} |")
+                f"{with_dup} ({dups} total) | {resent} | {effective_ok}/{len(crashed)} | "
+                f"{extra_llm / max(len(crashed), 1):.1f} |")
 
     by_stage: dict[str, list[dict]] = {}
     for r in results["single"]:
@@ -291,7 +325,8 @@ def summarize(results: dict) -> str:
         by_kind.setdefault(r["kind"], []).append(r)
 
     header = ("| Scenario | Crashed runs | Recovered | Report identical to uncrashed run | "
-              "Runs with duplicate searches | Re-executed LLM calls / run |\n|---|--:|--:|--:|--:|--:|")
+              "Runs with duplicate searches | Runs with a webhook re-send | Delivered exactly once (after dedup) | "
+              "Re-executed LLM calls / run |\n|---|--:|--:|--:|--:|--:|--:|--:|")
     lines = [
         "# Crash-recovery benchmark",
         "",
@@ -310,7 +345,7 @@ def summarize(results: dict) -> str:
         "## By pipeline stage at crash time",
         "",
         header,
-        *[row(s, by_stage[s]) for s in ("plan", "execute", "report", "verify", "done") if s in by_stage],
+        *[row(s, by_stage[s]) for s in ("plan", "execute", "report", "verify", "deliver") if s in by_stage],
         "",
         f"_{len(results['single']) + len(results['multi']) + 1} scenarios in {results['seconds']}s._",
         "",
