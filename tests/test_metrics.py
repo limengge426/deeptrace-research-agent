@@ -17,7 +17,7 @@ def test_run_records_llm_tool_and_stage_metrics(tmp_path):
     result = asyncio.run(runtime.start("Are heat pumps worth it?"))
     m = run_metrics(result.state)
 
-    assert {"plan", "queries", "finding", "report", "judge"} <= set(m["llm"])
+    assert {"plan", "queries", "finding", "outline", "section", "synthesis", "judge"} <= set(m["llm"])
     assert m["llm"]["queries"]["calls"] == 3 and m["llm"]["plan"]["tokens"] == 100
     assert sum(v["tokens"] for v in m["llm"].values()) == result.state.usage["tokens"]
     assert m["tools"]["fake"]["calls"] == sum(search.calls.values())
@@ -88,7 +88,7 @@ def test_metrics_endpoints(tmp_path):
     run_id = asyncio.run(runtime.start("Are heat pumps worth it?")).run_id
     with TestClient(create_app(runtime, embedded_worker=False)) as client:
         per_run = client.get(f"/runs/{run_id}/metrics").json()
-        assert per_run["status"] == "done" and per_run["llm"]["report"]["calls"] >= 1
+        assert per_run["status"] == "done" and per_run["llm"]["section"]["calls"] >= 1
         assert client.get("/metrics").json()["by_status"] == {"done": 1}
         prom = client.get("/metrics", params={"format": "prometheus"})
         assert prom.headers["content-type"].startswith("text/plain")

@@ -70,3 +70,57 @@ does not answer or supports only weakly. Only list gaps that more searching coul
 Return an empty list if the report is complete.
 
 Reply with JSON only: {"gaps": ["short sub-question", ...]} (at most 2 items)"""
+
+
+OUTLINE_SYSTEM = """You plan the structure of a research report.
+Group the findings into 2-6 sections that together answer the research question. Assign every
+finding to the section(s) that should use it by its task id. You may add one short concluding
+section with an empty task list; it will only synthesize what the other sections say.
+Write headings in the same language as the research question.
+
+Reply with JSON only:
+{"title": "...", "sections": [{"heading": "...", "tasks": ["t1", "t3"]}, {"heading": "Conclusion", "tasks": []}]}"""
+
+SECTION_SYSTEM = """You write one section of a research report, using ONLY the findings and evidence given.
+
+Rules:
+- Cite every factual sentence inline with evidence ids in square brackets, e.g. [E3].
+- Only cite ids that appear in the evidence list. Never invent sources.
+- Every number, date, or statistic must carry a citation.
+- Where sources disagree or the evidence is thin, say so.
+- Do not repeat the section heading. Write in the same language as the research question.
+
+Reply with JSON only: {"body": "markdown paragraphs with [E#] citations"}"""
+
+SYNTHESIS_SYSTEM = """You write the concluding section of a research report.
+Synthesize the section summaries into a direct answer to the research question. Do NOT introduce
+facts that are not in the summaries. You may reuse their citations; add no new ones.
+Write in the same language as the research question.
+
+Reply with JSON only: {"body": "one or two short paragraphs"}"""
+
+SECTION_USER = """Research question: {question}
+Report title: {title}
+Section: {heading}
+
+Findings for this section:
+{findings}
+
+Evidence:
+{evidence}
+{repair}"""
+
+SECTION_REPAIR = """
+Your previous draft of this section was:
+---
+{previous}
+---
+It failed verification. Fix exactly these problems and keep everything else:
+{problems}"""
+
+DIGEST_SYSTEM = """You condense research evidence into compact notes.
+Extract the facts relevant to the section topic as short bullet points. End every bullet with the
+id of the evidence it comes from, e.g. "- COP falls as outdoor temperature drops [E4]".
+Keep numbers exact. Omit anything irrelevant to the topic.
+
+Reply with JSON only: {"notes": "- fact [E#]\n- fact [E#]"}"""

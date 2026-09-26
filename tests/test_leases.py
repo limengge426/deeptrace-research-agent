@@ -65,13 +65,13 @@ def test_stalled_worker_is_fenced_off_and_new_owner_finishes(db):
     """
     frozen, resume_frozen = threading.Event(), threading.Event()
 
-    def report(system, user):
+    def section(system, user):
         if not frozen.is_set():
             frozen.set()
             resume_frozen.wait(5)  # blocks the event loop: no heartbeat can run
-        return fakes.report(system, user)
+        return fakes.section(system, user)
 
-    stalled = _runtime(db, "stalled", ScriptedLLM(report=report), lease_ttl=0.3)
+    stalled = _runtime(db, "stalled", ScriptedLLM(section=section), lease_ttl=0.3)
     outcome = {}
 
     def run_stalled():

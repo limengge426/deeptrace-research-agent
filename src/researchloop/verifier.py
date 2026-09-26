@@ -7,14 +7,17 @@ fixed by planning more research.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 from . import prompts
 from .ledger import EvidenceLedger
 from .llm import LLM, LLMFormatError, parse_json_object
-from .models import Finding, Issue, Plan, Report
+from .faithfulness import split_sentences
+from .models import CITATION_RE, Finding, Issue, Plan, Report
 
 UNCITED_SECTION_MIN_CHARS = 400
+_FIGURE_RE = re.compile(r"\d")  # numbers, percentages, years: the facts most often invented
 
 
 @dataclass
@@ -38,21 +41,34 @@ def check_report(
     ledger: EvidenceLedger,
     *,
     addressed_gaps: list[str],
+    outline: list[dict] | None = None,
 ) -> Verdict:
     verdict = Verdict()
 
-    unknown = [c for c in report.citations() if c not in ledger]
-    if unknown:
-        verdict.issues.append(
-            Issue("report", "unknown_citation", f"Citations {unknown} do not exist. Cite only listed evidence ids.")
-        )
-
     for section in report.sections:
-        if not section.citations() and len(section.body) >= UNCITED_SECTION_MIN_CHARS:
-            verdict.issues.append(
-                Issue("report", "uncited_section", f'Section "{section.heading}" makes claims without any citation.')
-            )
+        unknown = [c for c in dict.fromkeys(section.citations()) if c not in ledger]
+        if unknown:
+            verdict.issues.append(Issue(
+                "report", "unknown_citation",
+                f"Citations {unknown} do not exist. Cite only listed evidence ids.", section=section.heading,
+            ))
+        if not section.citations() and not section.synthesis and len(section.body) >= UNCITED_SECTION_MIN_CHARS:
+            verdict.issues.append(Issue(
+                "report", "uncited_section",
+                f'Section "{section.heading}" makes claims without any citation.', section=section.heading,
+            ))
+        if not section.synthesis:
+            bare = [s for s in split_sentences(section.body) if _FIGURE_RE.search(s) and not CITATION_RE.search(s)]
+            if bare:
+                quoted = "; ".join(f'"{s[:160]}"' for s in bare[:3])
+                verdict.issues.append(Issue(
+                    "report", "uncited_figure",
+                    f"These sentences state figures without a citation: {quoted}. Cite the evidence or remove them.",
+                    note=f'Uncited figures in "{section.heading}": {quoted}',
+                    section=section.heading,
+                ))
 
+    owner = {t: sec["heading"] for sec in outline or [] for t in sec["tasks"]}
     cited = set(report.citations())
     for tid, finding in findings.items():
         if finding.evidence_ids and not cited.intersection(finding.evidence_ids):
@@ -62,6 +78,7 @@ def check_report(
                     "dropped_finding",
                     f'The report ignores the finding for "{plan.get(tid).question}"; '
                     f"cite at least one of {finding.evidence_ids}.",
+                    section=owner.get(tid),
                 )
             )
 

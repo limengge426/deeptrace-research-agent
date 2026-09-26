@@ -87,6 +87,7 @@ class FaithfulnessReport:
                 f"{', '.join(v.claim.citations)}: {v.reason} Rewrite it to match the evidence or remove it.",
                 note=f'"{_clip(CITATION_RE.sub("", v.claim.text).strip(), 220)}": not supported by the cited '
                 f"source ({', '.join(v.claim.citations)}; {v.label}). {v.reason}",
+                section=v.claim.section,
             )
             for v in self.failing
         ]
@@ -100,24 +101,30 @@ def _clip(text: str, n: int) -> str:
     return text if len(text) <= n else text[: n - 1] + "…"
 
 
+def split_sentences(body: str) -> list[str]:
+    """Sentences and list items of a Markdown body, with trailing citations kept attached."""
+    sentences: list[str] = []
+    for block in re.split(r"\n\s*\n|\n", _LIST_ITEM_RE.sub("\n", body)):
+        current: list[str] = []
+        for piece in _SENTENCE_RE.split(block.strip()):
+            piece = piece.strip()
+            # "... is 3. [E2]" splits into "... is 3." and "[E2]": reattach the citation.
+            if current and piece and not CITATION_RE.sub("", piece).strip(" .;,"):
+                current[-1] += " " + piece
+            elif piece:
+                current.append(piece)
+        sentences += current
+    return sentences
+
+
 def extract_claims(report: Report) -> list[Claim]:
     """Every sentence (or list item) that cites at least one evidence id."""
     claims: list[Claim] = []
     for section in report.sections:
-        body = _LIST_ITEM_RE.sub("\n", section.body)
-        for block in re.split(r"\n\s*\n|\n", body):
-            sentences: list[str] = []
-            for piece in _SENTENCE_RE.split(block.strip()):
-                piece = piece.strip()
-                # "... is 3. [E2]" splits into "... is 3." and "[E2]": reattach the citation.
-                if sentences and piece and not CITATION_RE.sub("", piece).strip(" .;,"):
-                    sentences[-1] += " " + piece
-                elif piece:
-                    sentences.append(piece)
-            for sentence in sentences:
-                cites = list(dict.fromkeys(CITATION_RE.findall(sentence)))
-                if cites and len(CITATION_RE.sub("", sentence).strip(" .;,")) > 3:
-                    claims.append(Claim(len(claims) + 1, section.heading, sentence, cites))
+        for sentence in split_sentences(section.body):
+            cites = list(dict.fromkeys(CITATION_RE.findall(sentence)))
+            if cites and len(CITATION_RE.sub("", sentence).strip(" .;,")) > 3:
+                claims.append(Claim(len(claims) + 1, section.heading, sentence, cites))
     return claims
 
 

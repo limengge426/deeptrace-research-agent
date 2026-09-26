@@ -52,6 +52,25 @@ def replan(system: str, user: str) -> dict:
     return {"tasks": [{"id": f"{prefix}1", "question": "Heat pump performance below -15C", "depends_on": []}]}
 
 
+def outline(system: str, user: str) -> dict:
+    tasks = re.findall(r"^- \[(\S+?)\]", user, re.MULTILINE)
+    return {
+        "title": "Heat pumps",
+        "sections": [{"heading": f"About {t}", "tasks": [t]} for t in tasks] + [{"heading": "Conclusion", "tasks": []}],
+    }
+
+
+def section(system: str, user: str) -> dict:
+    evidence = user.split("Evidence:", 1)[1].split("Your previous draft", 1)[0]
+    ids = list(dict.fromkeys(re.findall(r"\[(E\d+)\]", evidence)))
+    return {"body": " ".join(f"A sourced claim [{e}]." for e in ids) or "Nothing to add."}
+
+
+def digest(system: str, user: str) -> dict:
+    ids = re.findall(r"^\[(E\d+)\]", user, re.MULTILINE)
+    return {"notes": "\n".join(f"- condensed fact [{e}]" for e in ids)}
+
+
 def judge_all(user: str, label: str) -> dict:
     ids = re.findall(r"^(\d+)\. ", user.split("Claims:", 1)[1], re.MULTILINE)
     return {"verdicts": [{"id": int(i), "label": label, "reason": "scripted"} for i in ids]}
@@ -66,6 +85,10 @@ DEFAULT_HANDLERS: dict[str, Handler] = {
     "queries": queries,
     "finding": finding,
     "report": report,
+    "outline": outline,
+    "section": section,
+    "synthesis": lambda s, u: {"body": "In short, the sections above answer the question."},
+    "digest": digest,
     "critic": lambda s, u: {"gaps": []},
     "judge": lambda s, u: judge_all(u, "supported"),
 }

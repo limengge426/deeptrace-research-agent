@@ -64,24 +64,28 @@ def test_judge_sees_full_text_of_cited_evidence_in_batches():
 
 
 def test_unsupported_claim_is_repaired_with_a_precise_note(tmp_path):
-    drafts = []
+    repairs = []
+    judged = []
 
-    def report(system, user):
-        drafts.append(user)
-        return fakes.report(system, user)
+    def section(system, user):
+        if "failed verification" in user:
+            repairs.append(user)
+        return fakes.section(system, user)
 
     def judge(system, user):
         # First draft: flag claim 1 as contradicted; afterwards everything is supported.
-        label = "contradicted" if len(drafts) == 1 else "supported"
+        judged.append(user)
         out = fakes.judge_all(user, "supported")
-        out["verdicts"][0].update(label=label, reason="E1 says the opposite")
+        if len(judged) == 1:
+            out["verdicts"][0].update(label="contradicted", reason="E1 says the opposite")
         return out
 
-    runtime = ResearchRuntime(ScriptedLLM(report=report, judge=judge), FakeSearch(), RunStore(tmp_path / "r.db"))
+    runtime = ResearchRuntime(ScriptedLLM(section=section, judge=judge), FakeSearch(), RunStore(tmp_path / "r.db"))
     result = asyncio.run(runtime.start("Are heat pumps worth it?"))
 
     assert result.status == "done" and result.state.repairs == 1
-    assert "contradicted" in drafts[1] and "E1 says the opposite" in drafts[1]
+    assert len(repairs) == 1  # only the section holding the bad claim is rewritten
+    assert "contradicted" in repairs[0] and "E1 says the opposite" in repairs[0]
     rates = [f["support_rate"] for f in result.state.faithfulness]
     assert rates[0] < 1.0 and rates[-1] == 1.0
     assert "Limitations" not in result.markdown

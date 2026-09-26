@@ -53,22 +53,30 @@ def test_dependent_task_sees_upstream_findings(store):
     assert "Findings from prerequisite tasks" not in seen["What is a heat pump?"]
 
 
-def test_bad_citation_triggers_report_repair(store):
-    drafts = []
+def test_bad_citation_triggers_repair_of_only_the_broken_section(store):
+    repairs = []
 
-    def report(system, user):
-        drafts.append(user)
-        out = fakes.report(system, user)
-        if len(drafts) == 1:
-            out["sections"][0]["body"] += " Also [E999]."
+    def section(system, user):
+        out = fakes.section(system, user)
+        if "failed verification" in user:
+            repairs.append(user)
+        elif "Section: About t1" in user:
+            out["body"] += " Also [E999]."
         return out
 
-    result = run(ResearchRuntime(ScriptedLLM(report=report), FakeSearch(), store))
+    result = run(ResearchRuntime(ScriptedLLM(section=section), FakeSearch(), store))
 
     assert result.status == "done"
     assert result.state.repairs == 1
-    assert "failed verification" in drafts[1] and "E999" in drafts[1]
+    assert len(repairs) == 1 and "Section: About t1" in repairs[0] and "E999" in repairs[0]
     assert "[E999]" not in result.markdown
+    repaired = [e for e in store.events(result.run_id) if e.kind == "report_repaired"][0].payload
+    assert repaired["sections"][0] == "About t1" and "About t2" in repaired["kept"]
+
+
+def test_single_shot_report_mode_still_works(store):
+    result = run(ResearchRuntime(ScriptedLLM(), FakeSearch(), store, report_mode="single"))
+    assert result.status == "done" and result.state.outline == []
 
 
 def test_evidence_gap_triggers_replan(store):

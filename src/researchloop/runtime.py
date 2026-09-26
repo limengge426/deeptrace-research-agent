@@ -83,6 +83,8 @@ class ResearchRuntime:
         max_attempts: int = 3,
         check_faithfulness: bool = True,
         judge_llm: LLM | None = None,
+        report_mode: str = "sections",
+        context_budget: reporter.ContextBudget | None = None,
     ) -> None:
         self.llm = llm
         self.search = search
@@ -98,6 +100,10 @@ class ResearchRuntime:
         self.max_attempts = max_attempts
         self.check_faithfulness = check_faithfulness
         self.judge_llm = judge_llm  # defaults to the main model; a separate judge avoids self-grading
+        if report_mode not in ("sections", "single"):
+            raise ValueError("report_mode must be 'sections' or 'single'")
+        self.report_mode = report_mode
+        self.context_budget = context_budget or reporter.ContextBudget()
 
     # -- public API --------------------------------------------------------
 
@@ -326,17 +332,33 @@ class ResearchRuntime:
         s.state.stage = "report"
 
     async def _report(self, s: _Session) -> None:
-        problems = [i for i in s.state.issues if i.kind == "report"]
-        s.state.report = await reporter.write_report(
-            s.llm, s.state.question, s.state.plan, s.state.findings, s.ledger, problems=problems or None
-        )
-        s.state.stage = "verify"
+        state = s.state
+        problems = [i for i in state.issues if i.kind == "report"]
+        if self.report_mode == "single":
+            state.report = await reporter.write_report(
+                s.llm, state.question, state.plan, state.findings, s.ledger, problems=problems or None
+            )
+        elif problems and state.report and state.outline:
+            state.report, rewritten = await reporter.repair_sections(
+                s.llm, state.question, state.report, state.outline, state.plan, state.findings, s.ledger,
+                problems, budget=self.context_budget,
+            )
+            self.store.log(s.run_id, "report_repaired", sections=rewritten,
+                           kept=[x.heading for x in state.report.sections if x.heading not in rewritten])
+        else:
+            state.report, state.outline = await reporter.write_sectioned_report(
+                s.llm, state.question, state.plan, state.findings, s.ledger, budget=self.context_budget
+            )
+            self.store.log(s.run_id, "outline", sections=[
+                {"heading": x["heading"], "tasks": x["tasks"], "synthesis": x["synthesis"]} for x in state.outline
+            ])
+        state.stage = "verify"
 
     async def _verify(self, s: _Session) -> None:
         state = s.state
         assert state.report is not None
         verdict = verifier.check_report(
-            state.report, state.plan, state.findings, s.ledger, addressed_gaps=state.gaps
+            state.report, state.plan, state.findings, s.ledger, addressed_gaps=state.gaps, outline=state.outline
         )
         if self.check_faithfulness and not verdict.report_issues:
             # Only judge drafts that already pass the structural checks; others get rewritten anyway.

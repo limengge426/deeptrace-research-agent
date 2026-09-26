@@ -101,6 +101,7 @@ class Finding:
 class Section:
     heading: str
     body: str
+    synthesis: bool = False  # a conclusion-style section that must not introduce new facts
 
     def citations(self) -> list[str]:
         return CITATION_RE.findall(self.body)
@@ -126,6 +127,7 @@ class Issue:
     code: str
     detail: str  # instruction for the model that repairs the report
     note: str | None = None  # reader-facing wording for the Limitations section, if different
+    section: str | None = None  # heading of the section to rewrite, when the issue is local to one
 
 
 @dataclass
@@ -146,6 +148,7 @@ class RunState:
     hold: str | None = None  # "paused" | "awaiting_approval": not claimable until released
     approve_plan: bool = False  # stop after planning until a human approves (or edits) the plan
     metrics: dict = field(default_factory=dict)  # see metrics.RunMetrics
+    outline: list[dict] = field(default_factory=list)  # [{"heading", "tasks", "synthesis"}] for the report
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -170,6 +173,7 @@ class RunState:
             hold=data.get("hold"),
             approve_plan=bool(data.get("approve_plan", False)),
             metrics=dict(data.get("metrics", {})),
+            outline=list(data.get("outline", [])),
         )
 
     @property
