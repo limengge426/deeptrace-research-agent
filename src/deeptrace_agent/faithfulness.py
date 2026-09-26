@@ -78,8 +78,9 @@ class FaithfulnessReport:
         out["support_rate"] = round(self.support_rate, 4)
         return out
 
-    def issues(self) -> list[Issue]:
-        return [
+    def issues(self, *, include_partial: bool = False) -> list[Issue]:
+        """Repair notes for failing claims, and optionally for claims that go beyond their evidence."""
+        out = [
             Issue(
                 "report",
                 f"{v.label}_claim",
@@ -91,9 +92,49 @@ class FaithfulnessReport:
             )
             for v in self.failing
         ]
+        if include_partial:
+            out += [
+                Issue(
+                    "report",
+                    "partial_claim",
+                    f'In "{v.claim.section}", the claim "{_clip(v.claim.text, 220)}" goes beyond what '
+                    f"{', '.join(v.claim.citations)} says: {v.reason} Narrow it to exactly what the evidence "
+                    "states, keeping the citation, or drop the part the evidence does not support.",
+                    section=v.claim.section,
+                )
+                for v in self.verdicts
+                if v.label == "partial"
+            ]
+        return out
 
     def to_dict(self) -> dict:
         return {"summary": self.summary(), "verdicts": [asdict(v) for v in self.verdicts]}
+
+
+def annotate_report(report: Report, verdicts: list[dict]) -> list[dict]:
+    """Split each section into paragraphs of sentences, attaching the verdict of every judged claim.
+
+    ``verdicts`` are dicts with ``section``, ``text``, ``label`` and ``reason`` (as stored on the
+    run state). Used by the web console to colour sentences by how well their sources support them.
+    """
+    by_key = {(v["section"], " ".join(v["text"].split())): v for v in verdicts}
+    out = []
+    for section in report.sections:
+        paragraphs = []
+        for block in re.split(r"\n\s*\n", section.body.strip()):
+            sentences = []
+            for sentence in split_sentences(block):
+                v = by_key.get((section.heading, " ".join(sentence.split())))
+                sentences.append({
+                    "text": sentence,
+                    "citations": list(dict.fromkeys(CITATION_RE.findall(sentence))),
+                    "label": v["label"] if v else None,
+                    "reason": v["reason"] if v else None,
+                })
+            if sentences:
+                paragraphs.append(sentences)
+        out.append({"heading": section.heading, "synthesis": section.synthesis, "paragraphs": paragraphs})
+    return out
 
 
 def _clip(text: str, n: int) -> str:

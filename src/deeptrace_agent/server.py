@@ -12,17 +12,22 @@ import asyncio
 import json
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import AsyncIterator
 
 from fastapi import FastAPI, Header, HTTPException, Query
-from fastapi.responses import PlainTextResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import metrics as run_metrics
 from .env import getenv
 from .models import TERMINAL
 from .runtime import InvalidAction, ResearchRuntime
+from .views import run_state
 from .worker import Worker
+
+WEB_DIST = Path(__file__).parent / "web_dist"  # built web console (see web/), served at /
 
 
 class RunRequest(BaseModel):
@@ -202,6 +207,20 @@ def create_app(runtime: ResearchRuntime, *, embedded_worker: bool = True, poll_i
                 await asyncio.sleep(poll_interval / 2)
 
         return StreamingResponse(stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})
+
+    @app.get("/runs/{run_id}/state")
+    async def get_state(run_id: str) -> dict:
+        """Everything the web console shows for one run."""
+        view(run_id)  # 404 for unknown runs
+        return run_state(store, run_id)
+
+    if WEB_DIST.is_dir():
+        app.mount("/", StaticFiles(directory=WEB_DIST, html=True), name="web")
+    else:
+        @app.get("/", response_class=HTMLResponse, include_in_schema=False)
+        async def web_missing() -> str:
+            return ("<h1>DeepTrace API</h1><p>The web console is not built. Run <code>cd web && npm install && "
+                    "npm run build</code>, or use the <a href='/docs'>API docs</a>.</p>")
 
     return app
 

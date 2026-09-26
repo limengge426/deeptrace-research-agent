@@ -83,6 +83,7 @@ class ResearchRuntime:
         lease_ttl: float = 30.0,
         max_attempts: int = 3,
         check_faithfulness: bool = True,
+        repair_partial: bool = False,
         judge_llm: LLM | None = None,
         report_mode: str = "sections",
         context_budget: reporter.ContextBudget | None = None,
@@ -104,6 +105,7 @@ class ResearchRuntime:
         self.lease_ttl = lease_ttl
         self.max_attempts = max_attempts
         self.check_faithfulness = check_faithfulness
+        self.repair_partial = repair_partial  # also rewrite claims the judge finds only partially supported
         self.judge_llm = judge_llm  # defaults to the main model; a separate judge avoids self-grading
         if report_mode not in ("sections", "single"):
             raise ValueError("report_mode must be 'sections' or 'single'")
@@ -349,7 +351,8 @@ class ResearchRuntime:
     def _markdown(state: RunState, ledger: EvidenceLedger) -> str | None:
         if not state.report:
             return None
-        notes = [i.note or i.detail for i in state.issues if i.code != "unknown_citation"]
+        # Unknown citations are stripped and partial claims are minor: neither goes to Limitations.
+        notes = [i.note or i.detail for i in state.issues if i.code not in ("unknown_citation", "partial_claim")]
         return reporter.render_markdown(state.report, ledger, notes=notes)
 
     # -- stages ------------------------------------------------------------
@@ -407,7 +410,9 @@ class ResearchRuntime:
             # Only judge drafts that already pass the structural checks; others get rewritten anyway.
             judged = await faithfulness.check_faithfulness(s.judge, state.report, s.ledger)
             state.faithfulness.append(judged.summary())
-            verdict.issues += judged.issues()
+            state.verdicts = [{"section": v.claim.section, "text": v.claim.text, "citations": v.claim.citations,
+                               "label": v.label, "reason": v.reason} for v in judged.verdicts]
+            verdict.issues += judged.issues(include_partial=self.repair_partial)
             self.store.log(s.run_id, "faithfulness", **judged.summary())
         if verdict.passed and self.critic and state.replans < self.budget.max_replans:
             markdown = reporter.render_markdown(state.report, s.ledger)
@@ -435,7 +440,8 @@ class ResearchRuntime:
             state.gaps += verdict.gaps
             state.issues = []
             state.stage = "execute"
-            self.store.log(s.run_id, "replan", round=state.replans, tasks=[t.id for t in new_tasks])
+            self.store.log(s.run_id, "replan", round=state.replans,
+                           tasks=[{"id": t.id, "q": t.question, "deps": t.depends_on} for t in new_tasks])
             return
 
         # Out of repairs/replans (or nothing left to fix): finish, and surface what is

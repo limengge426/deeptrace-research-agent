@@ -10,3 +10,6 @@ evals/data/wikipedia/
 evals/data/*.db*
 evals/data/eval_*.jsonl
 evals/data/*.jsonl
+src/deeptrace_agent/web_dist/
+web/node_modules/
+web/dist/

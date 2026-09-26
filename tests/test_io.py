@@ -75,6 +75,18 @@ def test_llm_drops_response_format_when_server_rejects_it():
     assert "response_format" in bodies[0] and "response_format" not in bodies[1]
 
 
+def test_llm_fails_fast_when_the_account_is_out_of_credits():
+    calls = []
+
+    def handler(request):
+        calls.append(1)
+        return httpx.Response(429, text='{"error": {"type": "insufficient_quota"}}')
+
+    with pytest.raises(LLMError, match="no credits"):
+        asyncio.run(_llm_with(handler).complete("s", "u", purpose="t"))
+    assert len(calls) == 1
+
+
 def test_llm_gives_up_on_client_errors():
     with pytest.raises(LLMError, match="401"):
         asyncio.run(_llm_with(lambda r: httpx.Response(401, text="bad key")).complete("s", "u", purpose="t"))

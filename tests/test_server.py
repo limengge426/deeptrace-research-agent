@@ -80,3 +80,35 @@ def test_halted_run_can_be_resumed_through_the_api(tmp_path):
 
         assert client.post(f"/runs/{run_id}/resume").status_code == 202
         assert client.get(f"/runs/{run_id}").json()["status"] != "halted"
+
+
+def test_state_endpoint_returns_annotated_report_and_task_graph(tmp_path):
+    with _client(tmp_path) as client:
+        run_id = client.post("/runs", json={"question": "Are heat pumps worth it?"}).json()["id"]
+        _wait(client, run_id, {"done"})
+        state = client.get(f"/runs/{run_id}/state").json()
+
+        assert state["status"] == "done" and len(state["tasks"]) == 3
+        assert state["tasks"][2]["depends_on"] == ["t1", "t2"]
+        assert state["evidence"] and state["evidence"][0]["content"]
+        sentences = [s for sec in state["report"]["sections"] for p in sec["paragraphs"] for s in p]
+        cited = [s for s in sentences if s["citations"]]
+        assert cited and all(s["label"] == "supported" for s in cited)
+        assert state["report"]["sections"][-1]["synthesis"] is True
+        assert "llm" in state["metrics"] and state["lease"] is None
+        assert client.get("/runs/nope/state").status_code == 404
+
+        replan = [e for e in client.get(f"/runs/{run_id}/events").text.split("\n\n") if "event: plan\n" in e]
+        assert '"q":' in replan[0]  # plan events carry questions and dependencies for the task graph
+
+
+def test_root_serves_the_console_or_a_build_hint(tmp_path):
+    from deeptrace_agent import server
+
+    with _client(tmp_path) as client:
+        page = client.get("/")
+        assert page.status_code == 200
+        if server.WEB_DIST.is_dir():
+            assert '<div id="root">' in page.text
+        else:
+            assert "npm run build" in page.text

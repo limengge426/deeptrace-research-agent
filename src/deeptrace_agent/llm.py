@@ -111,6 +111,9 @@ class OpenAICompatLLM:
                     text = data["choices"][0]["message"]["content"] or ""
                     tokens = (data.get("usage") or {}).get("total_tokens") or estimate_tokens(system, user, text)
                     return Completion(text=text, tokens=int(tokens))
+                if resp.status_code == 429 and "insufficient_quota" in resp.text:
+                    # Out of credits: retrying cannot help, so fail fast instead of backing off.
+                    raise LLMError(f"{purpose}: the provider account has no credits left (insufficient_quota)")
                 if resp.status_code not in self.RETRYABLE or attempt == self.max_retries:
                     raise LLMError(f"{purpose}: HTTP {resp.status_code}: {resp.text[:300]}")
                 hinted = retry_after(resp.headers)

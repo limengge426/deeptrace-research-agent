@@ -149,6 +149,7 @@ class RunState:
     approve_plan: bool = False  # stop after planning until a human approves (or edits) the plan
     metrics: dict = field(default_factory=dict)  # see metrics.RunMetrics
     outline: list[dict] = field(default_factory=list)  # [{"heading", "tasks", "synthesis"}] for the report
+    verdicts: list[dict] = field(default_factory=list)  # claim-level verdicts on the latest judged draft
     deliver_to: str | None = None  # webhook URL that receives the finished report
     delivery: dict | None = None  # outcome of the delivery attempt
 
@@ -176,6 +177,7 @@ class RunState:
             approve_plan=bool(data.get("approve_plan", False)),
             metrics=dict(data.get("metrics", {})),
             outline=list(data.get("outline", [])),
+            verdicts=list(data.get("verdicts", [])),
             deliver_to=data.get("deliver_to"),
             delivery=data.get("delivery"),
         )

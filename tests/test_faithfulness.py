@@ -112,3 +112,39 @@ def test_faithfulness_can_be_disabled(tmp_path):
         ResearchRuntime(llm, FakeSearch(), RunStore(tmp_path / "r.db"), check_faithfulness=False).start("q")
     )
     assert llm.calls["judge"] == 0 and result.state.faithfulness == []
+
+
+def test_partial_claims_are_repaired_only_when_enabled(tmp_path):
+    def judge(system, user):
+        out = fakes.judge_all(user, "supported")
+        if "failed verification" not in judge.last_section:
+            out["verdicts"][0].update(label="partial", reason="the source gives no number")
+        return out
+
+    judge.last_section = ""
+
+    def section(system, user):
+        judge.last_section = user
+        return fakes.section(system, user)
+
+    results = {}
+    for flag in (False, True):
+        llm = ScriptedLLM(judge=judge, section=section)
+        runtime = ResearchRuntime(llm, FakeSearch(), RunStore(tmp_path / f"{flag}.db"), repair_partial=flag)
+        results[flag] = asyncio.run(runtime.start("Are heat pumps worth it?"))
+
+    assert results[False].state.repairs == 0
+    assert results[True].state.repairs == 1
+    assert "## Limitations" not in results[True].markdown  # partial leftovers are not listed
+
+
+def test_annotate_report_attaches_verdicts_to_sentences():
+    from deeptrace_agent.faithfulness import annotate_report
+
+    report = Report("T", [Section("A", "Heat pumps move heat [E1]. They are quiet.\n\nCOP falls in the cold. [E2]")])
+    verdicts = [{"section": "A", "text": "Heat pumps move heat [E1].", "label": "supported", "reason": "ok"},
+                {"section": "A", "text": "COP falls in the cold. [E2]", "label": "partial", "reason": "vague"}]
+    [section] = annotate_report(report, verdicts)
+    first, second = section["paragraphs"]
+    assert [(s["label"], s["citations"]) for s in first] == [("supported", ["E1"]), (None, [])]
+    assert second[0]["label"] == "partial" and second[0]["reason"] == "vague"

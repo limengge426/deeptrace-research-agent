@@ -11,7 +11,10 @@ Plan → research in parallel → write a cited report → verify every claim �
 ![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white)
 ![Docker](https://img.shields.io/badge/deploy-Docker-2496ED?logo=docker&logoColor=white)
 ![Core deps](https://img.shields.io/badge/core%20deps-httpx-22A06B)
+![React](https://img.shields.io/badge/UI-React%20%2B%20TypeScript-61DAFB?logo=react&logoColor=black)
 ![License](https://img.shields.io/badge/license-MIT-blue)
+
+**[▶ Try the live demo](https://limengge426.github.io/deeptrace-research-agent/)**: recorded runs of the real agent, replayed in your browser
 
 </div>
 
@@ -20,6 +23,11 @@ Plan → research in parallel → write a cited report → verify every claim �
 Most "deep research" demos generate a report and hope it is right. **DeepTrace treats the report as a set of claims that each have to pass checks.** Every source gets a stable evidence id. Every sentence must cite those ids. A judge model then checks each cited sentence against the full text of its sources, and the verifier decides whether the run is done, needs specific sections rewritten, or needs more research.
 
 Around the model sits a harness built for failure. Runs are checkpointed to SQLite and tool calls go through a write-ahead intent log, so crashes never lose work or repeat side effects. Workers coordinate through **leases with fencing tokens**. Humans can **pause, cancel, approve the plan, or reconcile an interrupted side effect**. Every run reports **metrics per stage, per LLM purpose and per tool**.
+
+<p align="center">
+  <img src="docs/console-live.png" alt="Live view: the task graph fills in as parallel research tasks finish" width="49%">
+  <img src="docs/console-report.png" alt="Report view: every cited sentence coloured by how well its source supports it" width="49%">
+</p>
 
 ## ✨ Highlights
 
@@ -35,7 +43,8 @@ Around the model sits a harness built for failure. Runs are checkpointed to SQLi
 | 🔒 **Leased multi-worker execution** | Workers claim runs through heartbeat-renewed leases. A dead worker's runs are taken over when its lease expires. Every checkpoint carries a fencing token, so a stalled worker cannot overwrite the new owner's progress. |
 | 🙋 **Human control** | Cancel or pause a run (applied at the next step boundary), resume it later, require **plan approval** (approve as proposed or submit an edited DAG), and reconcile interrupted side effects. |
 | 📈 **Observability** | Tokens, calls, latency and errors per LLM purpose; calls and cache hits per tool; time per stage. Available per run and aggregated (P50/P95, faithfulness), also in Prometheus format. Live progress over Server-Sent Events. |
-| 🌐 **HTTP API & Docker** | FastAPI service; `docker compose up` starts the API plus two worker replicas. |
+| 🖥️ **Web console** | React + TypeScript console: watch the task graph fill in live, review and edit the plan before research starts, and read reports where **every cited sentence is coloured by how well its source supports it**. Click any citation to see the source text and every sentence that relies on it. |
+| 🌐 **HTTP API & Docker** | FastAPI service; `docker compose up` starts the API plus two worker replicas, with the console served at `/`. |
 | 🔌 **Bring your own model & search** | Any OpenAI-compatible endpoint (OpenAI, DeepSeek, Qwen, vLLM, Ollama). Web search (Tavily) with **full-page fetching** of the top hits, or a local folder with the built-in BM25 (Chinese supported). |
 
 ## 🏗️ How it works
@@ -138,6 +147,22 @@ deeptrace resolve <run_id> <key> --outcome done|retry         # reconcile one of
 
 </details>
 
+### Web console
+
+```bash
+cd web && npm install && npm run build && cd ..     # builds into the Python package
+deeptrace serve --corpus examples/corpus             # open http://127.0.0.1:8000
+```
+
+| View | What it shows |
+|---|---|
+| **Live** | The task graph, laid out by dependency level, updates as tasks start and finish, next to a readable event log. The log shows worker takeovers ("taken over by worker … lease token 2"), repairs and replans. |
+| **Plan review** | With *"Let me review the plan"* ticked, the run stops after planning; edit, add or remove sub-questions and dependencies, then approve. |
+| **Report** | Sentences are coloured by the claim judge (supported / partial / unsupported / contradicted). Hover for the judge's reason; click `[E3]` to open the source text and every sentence that cites it. |
+| **Metrics** | Tokens per LLM purpose, time per stage, evidence placed into prompts, tool calls and cache hits. |
+
+For development, `npm run dev` in `web/` proxies API calls to a server on port 8000. The same console runs as a static **replay demo** (`npm run build:demo`), published to GitHub Pages by [`pages.yml`](.github/workflows/pages.yml). Its data comes from [`evals/export_demo.py`](evals/export_demo.py), which exports real runs with worker names anonymised and evidence linked to the exact Wikipedia revisions.
+
 ### Run as a service
 
 ```bash
@@ -156,6 +181,7 @@ deeptrace serve --corpus examples/corpus            # API + embedded worker on :
 | `POST /runs/{id}/plan/approve` `{"tasks"?}` | Approve the proposed plan, or replace it with an edited DAG |
 | `GET /runs/{id}/tool-calls/pending` | Side-effecting calls interrupted mid-flight |
 | `POST /runs/{id}/tool-calls/{key}/resolve` `{"outcome": "done" \| "retry"}` | Reconcile one |
+| `GET /runs/{id}/state` | Everything the console shows: task graph, evidence, report annotated sentence by sentence, metrics |
 | `GET /metrics` `?format=prometheus` | Aggregates across runs (status counts, P50/P95, cache hit rate, faithfulness) |
 
 Interactive docs are served at `/docs`.
@@ -328,6 +354,7 @@ src/deeptrace_agent/
 ├── worker.py        # claims unowned runs and drives them
 ├── server.py        # FastAPI app
 ├── search.py        # local BM25 corpus and Tavily web search
+├── views.py         # JSON view of a run for the console
 ├── llm.py           # OpenAI-compatible client, rate-limit aware retries, robust JSON extraction
 ├── env.py           # DEEPTRACE_* configuration
 ├── prompts.py
@@ -339,13 +366,14 @@ evals/
 ├── fetch_wikipedia.py  # builds the pinned evaluation corpus
 ├── deploy_drill.sh     # API + 2 workers, one SIGKILLed mid-run
 └── mock_llm_server.py  # scripted OpenAI-compatible server for end-to-end checks
+web/                    # React + TypeScript console (Vite); live mode and replay demo
 Dockerfile · docker-compose.yml
 ```
 
 ## 🗺️ Roadmap
 
 - [x] Evaluation on a fixed corpus with real models ([results](evals/results/faithfulness_eval.md))
-- [ ] Repair *partial* claims too (this would also target the routing trade-off), evaluated on held-out questions
+- [ ] Repair *partial* claims too: implemented behind `repair_partial=True` (off by default); the held-out evaluation ([`evals/partial_repair_eval.py`](evals/partial_repair_eval.py), 24 new questions) is written but has not been run yet
 - [ ] Novelty-based early stopping for research rounds
 - [ ] Contradiction detection across sources
 - [ ] Postgres store (`FOR UPDATE SKIP LOCKED`) for workers on several hosts
@@ -357,6 +385,6 @@ The overall design, with a resumable harness, an evidence ledger and a completio
 ## 📄 License
 
 
-[MIT](LICENSE)
+[MIT](LICENSE). The recorded demo data in `web/public/demo/` contains excerpts of Wikipedia articles, which are licensed under CC BY-SA 4.0. Each excerpt links to its source revision.
 
 <sub>DeepTrace was previously named *researchloop*.</sub>

@@ -7,3 +7,8 @@
 reports
 .env
 evals/results
+web/node_modules
+web/dist-demo
+src/deeptrace_agent/web_dist
+evals/data
+docs

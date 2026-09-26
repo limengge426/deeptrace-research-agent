@@ -21,6 +21,8 @@ deeptrace = "deeptrace_agent.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/deeptrace_agent"]
+# The built web console is gitignored but must ship in the wheel when present.
+artifacts = ["src/deeptrace_agent/web_dist/**"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
