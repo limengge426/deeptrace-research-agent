@@ -1,0 +1,1293 @@
+{
+  "sites": {
+    "llm": 12,
+    "checkpoint": 12,
+    "search": 8,
+    "search-post": 8
+  },
+  "baseline": {
+    "kills": [],
+    "crashes": 0,
+    "processes": 1,
+    "status": "done",
+    "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+    "llm_calls": 12,
+    "searches": 8,
+    "duplicate_searches": 0
+  },
+  "single": [
+    {
+      "kills": [
+        {
+          "killed_at": "llm:1",
+          "stage": "plan"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 12,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "kind": "llm"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:2",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 12,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "kind": "llm"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:3",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 13,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "kind": "llm"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:4",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 14,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "kind": "llm"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:5",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 12,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "kind": "llm"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:6",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 13,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "kind": "llm"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:7",
+          "stage": "report"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 12,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "kind": "llm"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:8",
+          "stage": "report"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 12,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "kind": "llm"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:9",
+          "stage": "verify"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 12,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "kind": "llm"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:10",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 12,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "kind": "llm"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:11",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 13,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "kind": "llm"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:12",
+          "stage": "report"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 12,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "kind": "llm"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search:1",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 13,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "kind": "search"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search:2",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 13,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "kind": "search"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search:3",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 15,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "kind": "search"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search:4",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 15,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "kind": "search"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search:5",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 13,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "kind": "search"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search:6",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 13,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "kind": "search"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search:7",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 13,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "kind": "search"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search:8",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 13,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "kind": "search"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search-post:1",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 13,
+      "searches": 9,
+      "duplicate_searches": 1,
+      "kind": "search-post"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search-post:2",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 13,
+      "searches": 9,
+      "duplicate_searches": 1,
+      "kind": "search-post"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search-post:3",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 15,
+      "searches": 9,
+      "duplicate_searches": 1,
+      "kind": "search-post"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search-post:4",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 15,
+      "searches": 9,
+      "duplicate_searches": 1,
+      "kind": "search-post"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search-post:5",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 13,
+      "searches": 9,
+      "duplicate_searches": 1,
+      "kind": "search-post"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search-post:6",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 13,
+      "searches": 9,
+      "duplicate_searches": 1,
+      "kind": "search-post"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search-post:7",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 13,
+      "searches": 9,
+      "duplicate_searches": 1,
+      "kind": "search-post"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search-post:8",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 13,
+      "searches": 9,
+      "duplicate_searches": 1,
+      "kind": "search-post"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "checkpoint:1",
+          "stage": "plan"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 13,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "kind": "checkpoint"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "checkpoint:2",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 15,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "kind": "checkpoint"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "checkpoint:3",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 14,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "kind": "checkpoint"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "checkpoint:4",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 12,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "kind": "checkpoint"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "checkpoint:5",
+          "stage": "report"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 13,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "kind": "checkpoint"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "checkpoint:6",
+          "stage": "verify"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 12,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "kind": "checkpoint"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "checkpoint:7",
+          "stage": "report"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 13,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "kind": "checkpoint"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "checkpoint:8",
+          "stage": "verify"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 13,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "kind": "checkpoint"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "checkpoint:9",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 14,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "kind": "checkpoint"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "checkpoint:10",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 12,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "kind": "checkpoint"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "checkpoint:11",
+          "stage": "report"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 13,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "kind": "checkpoint"
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "checkpoint:12",
+          "stage": "verify"
+        }
+      ],
+      "crashes": 1,
+      "processes": 2,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 12,
+      "searches": 8,
+      "duplicate_searches": 0,
+      "kind": "checkpoint"
+    }
+  ],
+  "multi": [
+    {
+      "kills": [
+        {
+          "killed_at": "search:4",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "llm:1",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "llm:3",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 3,
+      "processes": 4,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 17,
+      "searches": 8,
+      "duplicate_searches": 0
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search:1",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "llm:4",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 2,
+      "processes": 3,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 13,
+      "searches": 8,
+      "duplicate_searches": 0
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:2",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "llm:5",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "checkpoint:1",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 3,
+      "processes": 4,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 15,
+      "searches": 8,
+      "duplicate_searches": 0
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search:1",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "checkpoint:1",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 2,
+      "processes": 3,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 16,
+      "searches": 8,
+      "duplicate_searches": 0
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:5",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "search:3",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 2,
+      "processes": 3,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 13,
+      "searches": 8,
+      "duplicate_searches": 0
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search:1",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "search-post:2",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "llm:5",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 3,
+      "processes": 4,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 15,
+      "searches": 9,
+      "duplicate_searches": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search-post:1",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "llm:5",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 2,
+      "processes": 3,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 14,
+      "searches": 9,
+      "duplicate_searches": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search:4",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "checkpoint:3",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 2,
+      "processes": 3,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 15,
+      "searches": 8,
+      "duplicate_searches": 0
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "checkpoint:3",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "search-post:2",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 2,
+      "processes": 3,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 15,
+      "searches": 9,
+      "duplicate_searches": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search-post:4",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "search-post:4",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 2,
+      "processes": 3,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 16,
+      "searches": 10,
+      "duplicate_searches": 2
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:1",
+          "stage": "plan"
+        },
+        {
+          "killed_at": "checkpoint:2",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "search-post:2",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 3,
+      "processes": 4,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 16,
+      "searches": 9,
+      "duplicate_searches": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "checkpoint:1",
+          "stage": "plan"
+        },
+        {
+          "killed_at": "llm:5",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "search-post:3",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 3,
+      "processes": 4,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 14,
+      "searches": 9,
+      "duplicate_searches": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "checkpoint:5",
+          "stage": "report"
+        },
+        {
+          "killed_at": "checkpoint:1",
+          "stage": "report"
+        },
+        {
+          "killed_at": "llm:3",
+          "stage": "verify"
+        }
+      ],
+      "crashes": 3,
+      "processes": 4,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 14,
+      "searches": 8,
+      "duplicate_searches": 0
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:1",
+          "stage": "plan"
+        },
+        {
+          "killed_at": "search-post:4",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "search-post:4",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 3,
+      "processes": 4,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 16,
+      "searches": 10,
+      "duplicate_searches": 2
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:4",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "search-post:2",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "llm:4",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 3,
+      "processes": 4,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 17,
+      "searches": 9,
+      "duplicate_searches": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search:3",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "search:2",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 2,
+      "processes": 3,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 18,
+      "searches": 8,
+      "duplicate_searches": 0
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "checkpoint:4",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "llm:2",
+          "stage": "report"
+        },
+        {
+          "killed_at": "checkpoint:4",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 3,
+      "processes": 4,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 12,
+      "searches": 8,
+      "duplicate_searches": 0
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search:4",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "search-post:4",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 2,
+      "processes": 3,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 16,
+      "searches": 9,
+      "duplicate_searches": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search:1",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "search:2",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 2,
+      "processes": 3,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 14,
+      "searches": 8,
+      "duplicate_searches": 0
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search:1",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "checkpoint:5",
+          "stage": "verify"
+        }
+      ],
+      "crashes": 2,
+      "processes": 3,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 13,
+      "searches": 8,
+      "duplicate_searches": 0
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search-post:3",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "llm:2",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 2,
+      "processes": 3,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 16,
+      "searches": 9,
+      "duplicate_searches": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search-post:3",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "search:1",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "checkpoint:6",
+          "stage": "report"
+        }
+      ],
+      "crashes": 3,
+      "processes": 4,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 19,
+      "searches": 9,
+      "duplicate_searches": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "checkpoint:4",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "checkpoint:1",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "checkpoint:6",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 3,
+      "processes": 4,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 14,
+      "searches": 8,
+      "duplicate_searches": 0
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:2",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "llm:2",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "checkpoint:2",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 3,
+      "processes": 4,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 15,
+      "searches": 8,
+      "duplicate_searches": 0
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search-post:1",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "llm:1",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 2,
+      "processes": 3,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 13,
+      "searches": 9,
+      "duplicate_searches": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "llm:3",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "llm:1",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 2,
+      "processes": 3,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 13,
+      "searches": 8,
+      "duplicate_searches": 0
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "checkpoint:2",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "search-post:3",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 2,
+      "processes": 3,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 16,
+      "searches": 9,
+      "duplicate_searches": 1
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "checkpoint:1",
+          "stage": "plan"
+        },
+        {
+          "killed_at": "llm:4",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "checkpoint:4",
+          "stage": "report"
+        }
+      ],
+      "crashes": 3,
+      "processes": 4,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 16,
+      "searches": 8,
+      "duplicate_searches": 0
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search-post:1",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "search:1",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "search-post:3",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 3,
+      "processes": 4,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 17,
+      "searches": 10,
+      "duplicate_searches": 2
+    },
+    {
+      "kills": [
+        {
+          "killed_at": "search:1",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "search:3",
+          "stage": "execute"
+        },
+        {
+          "killed_at": "search:1",
+          "stage": "execute"
+        }
+      ],
+      "crashes": 3,
+      "processes": 4,
+      "status": "done",
+      "report_sha": "ae5a4a1183e0ad9927248262ba4e841b1e8f2e73b9abcff10874ea32aebe5d31",
+      "llm_calls": 19,
+      "searches": 8,
+      "duplicate_searches": 0
+    }
+  ],
+  "seconds": 15.1
+}

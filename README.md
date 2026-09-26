@@ -25,7 +25,7 @@ Most "deep research" demos generate a report and hope it is right. **researchloo
 | 🧾 **Evidence ledger** | Search hits are deduplicated and assigned ids (`E1`, `E2`, …). Findings and the report may only cite ledger ids; hallucinated citations are caught and stripped. |
 | ✅ **Deterministic verification** | Before finishing, the verifier checks for unknown citations, uncited sections, sub-questions the report ignored, and sub-questions with no evidence. Optionally, an LLM critic looks for coverage gaps. |
 | 🔧 **Repair vs. replan** | Report problems trigger a targeted rewrite with the verifier's notes. Evidence gaps trigger a new planning round for just the missing pieces. Both are bounded. |
-| 💾 **Crash-safe & resumable** | State is checkpointed after every stage and every wave of tasks. Tool calls are cached by content hash, so a resumed run replays searches instead of repeating them. |
+| 💾 **Crash-safe & resumable** | State is checkpointed after every stage and every wave of tasks. Tool calls are cached by content hash, so a resumed run replays searches instead of repeating them. [Recovers 40/40 hard-killed runs](#-crash-recovery-benchmark) with byte-identical reports. |
 | 💰 **Hard budgets** | Tokens, tool calls, wall-clock time, replans and repairs are all capped. Hitting a cap *halts* the run cleanly; resume it later with a bigger budget. |
 | 🔌 **Bring your own model & search** | Any OpenAI-compatible endpoint (OpenAI, DeepSeek, Qwen, vLLM, Ollama). Search the web with Tavily or a local folder of notes with the built-in BM25 (Chinese supported). |
 
@@ -139,6 +139,27 @@ pytest
 
 The suite uses a scripted LLM and a fake search provider, so it runs offline in under a second. It covers the scenarios that matter for an agent runtime: parallel waves, dependency hand-off, citation repair, replanning after evidence gaps, one task failing without killing its siblings, **resuming after a hard crash without repeating searches**, halting on budget and resuming with a larger one, and HTTP retry/fallback behaviour of the LLM client.
 
+## 💥 Crash-recovery benchmark
+
+[`evals/crash_recovery.py`](evals/crash_recovery.py) hard-kills (`SIGKILL`) a worker process at **every** LLM call, search call and checkpoint write of a scripted run. The run includes one report repair and one replan, so all four stages are exercised. Fresh processes then resume the run until it finishes. Every executed search is written to an fsync'ed side-effect log, so duplicates are counted across processes.
+
+| Scenario | Crashed runs | Recovered | Report byte-identical to uncrashed run | Runs with a duplicate search |
+|---|--:|--:|--:|--:|
+| Kill before an LLM call | 12 | 12/12 | 12/12 | 0 |
+| Kill before a search | 8 | 8/8 | 8/8 | 0 |
+| Kill before a checkpoint write | 12 | 12/12 | 12/12 | 0 |
+| Kill **after** a search, before its result is cached | 8 | 8/8 | 8/8 | 8 |
+| **All single crashes** | **40** | **40/40** | **40/40** | 8 |
+| 2–3 crashes in the same run (random) | 30 | 30/30 | 30/30 | 14 |
+
+On average, recovery re-executes **1.0 LLM call** per crash (3.2 when a run crashes 2–3 times).
+
+**Limitation, by design:** tool calls are *at-least-once*, not exactly-once. If the process dies after a search has run but before its result reaches the cache, that search runs again on resume. No local bookkeeping can close this window, because the side effect and the cache write are two separate systems. Exactly-once would need the external service to accept an idempotency key. For read-only search a repeat is harmless; any future tool with side effects would need that key.
+
+```bash
+python evals/crash_recovery.py    # 71 scenarios, ~15 s; writes evals/results/
+```
+
 ## 🗂️ Layout
 
 ```text
@@ -155,6 +176,8 @@ src/researchloop/
 ├── llm.py         # OpenAI-compatible client, robust JSON extraction
 ├── prompts.py
 └── cli.py
+evals/
+└── crash_recovery.py   # fault-injection benchmark; results in evals/results/
 ```
 
 ## 🗺️ Roadmap
