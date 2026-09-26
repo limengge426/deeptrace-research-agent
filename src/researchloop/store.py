@@ -18,7 +18,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .models import RunState
+from .models import NOT_CLAIMABLE, RunState
+
+_NOT_CLAIMABLE_SQL = ", ".join(f"'{s}'" for s in NOT_CLAIMABLE)
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS runs (
@@ -42,6 +44,11 @@ CREATE TABLE IF NOT EXISTS leases (
     owner TEXT NOT NULL,
     token INTEGER NOT NULL,
     expires_at REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS controls (
+    run_id TEXT PRIMARY KEY REFERENCES runs(id),
+    action TEXT NOT NULL,
+    requested_at REAL NOT NULL
 );
 CREATE TABLE IF NOT EXISTS tool_cache (
     key TEXT PRIMARY KEY,
@@ -118,10 +125,32 @@ class RunStore:
             raise LeaseLost(f"lease on run {run_id} (token {lease.token}) was taken over")
 
     def requeue(self, run_id: str) -> None:
-        """Make a halted run claimable again by clearing its error."""
+        """Make a halted or paused run claimable again by clearing its error and hold."""
         state = self.load(run_id)
         state.error = None
-        self.checkpoint(run_id, state, status=state.stage)
+        state.hold = None
+        self.checkpoint(run_id, state, status=state.status)
+
+    # -- human control ------------------------------------------------------
+
+    def request_control(self, run_id: str, action: str) -> None:
+        """Ask whoever drives the run to "cancel" or "pause" it at the next step boundary."""
+        self._conn.execute(
+            "INSERT OR REPLACE INTO controls VALUES (?, ?, ?)", (run_id, action, time.time())
+        )
+
+    def take_control(self, run_id: str) -> str | None:
+        """Atomically read and clear a pending control request."""
+        self._conn.execute("BEGIN IMMEDIATE")
+        try:
+            row = self._conn.execute("SELECT action FROM controls WHERE run_id = ?", (run_id,)).fetchone()
+            if row:
+                self._conn.execute("DELETE FROM controls WHERE run_id = ?", (run_id,))
+            self._conn.execute("COMMIT")
+        except BaseException:
+            self._conn.execute("ROLLBACK")
+            raise
+        return row[0] if row else None
 
     def load(self, run_id: str) -> RunState:
         row = self._conn.execute("SELECT state FROM runs WHERE id = ?", (run_id,)).fetchone()
@@ -201,7 +230,7 @@ class RunStore:
         """Unfinished, unpaused runs that nobody currently holds a live lease on."""
         rows = self._conn.execute(
             "SELECT r.id FROM runs r LEFT JOIN leases l ON l.run_id = r.id "
-            "WHERE r.status NOT IN ('done', 'failed', 'halted') AND (l.run_id IS NULL OR l.expires_at <= ?) "
+            f"WHERE r.status NOT IN ({_NOT_CLAIMABLE_SQL}) AND (l.run_id IS NULL OR l.expires_at <= ?) "
             "ORDER BY r.created_at LIMIT ?",
             (time.time(), limit),
         ).fetchall()
@@ -210,7 +239,7 @@ class RunStore:
     def pending(self) -> list[str]:
         """Runs that are neither finished nor paused, whether or not someone holds them."""
         rows = self._conn.execute(
-            "SELECT id FROM runs WHERE status NOT IN ('done', 'failed', 'halted') ORDER BY created_at"
+            f"SELECT id FROM runs WHERE status NOT IN ({_NOT_CLAIMABLE_SQL}) ORDER BY created_at"
         ).fetchall()
         return [row[0] for row in rows]
 

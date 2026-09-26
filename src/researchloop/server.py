@@ -18,12 +18,24 @@ from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
-from .runtime import TERMINAL, ResearchRuntime
+from .models import TERMINAL
+from .runtime import InvalidAction, ResearchRuntime
 from .worker import Worker
 
 
 class RunRequest(BaseModel):
     question: str = Field(min_length=3, max_length=2000)
+    approve_plan: bool = Field(False, description="pause after planning until the plan is approved")
+
+
+class PlanTask(BaseModel):
+    id: str
+    question: str = Field(min_length=3)
+    depends_on: list[str] = []
+
+
+class PlanApproval(BaseModel):
+    tasks: list[PlanTask] | None = Field(None, description="an edited plan; omit to approve as proposed")
 
 
 class TaskView(BaseModel):
@@ -87,7 +99,29 @@ def create_app(runtime: ResearchRuntime, *, embedded_worker: bool = True, poll_i
 
     @app.post("/runs", status_code=202)
     async def submit(req: RunRequest) -> RunView:
-        return view(runtime.create(req.question))
+        return view(runtime.create(req.question, approve_plan=req.approve_plan))
+
+    def act(run_id: str, action) -> RunView:
+        view(run_id)  # 404 for unknown runs
+        try:
+            action()
+        except InvalidAction as exc:
+            raise HTTPException(409, str(exc)) from None
+        return view(run_id)
+
+    @app.post("/runs/{run_id}/cancel", status_code=202)
+    async def cancel(run_id: str) -> RunView:
+        """Cancel now if idle, otherwise at the running worker's next step boundary."""
+        return act(run_id, lambda: runtime.cancel(run_id))
+
+    @app.post("/runs/{run_id}/pause", status_code=202)
+    async def pause(run_id: str) -> RunView:
+        return act(run_id, lambda: runtime.pause(run_id))
+
+    @app.post("/runs/{run_id}/plan/approve", status_code=202)
+    async def approve(run_id: str, body: PlanApproval | None = None) -> RunView:
+        tasks = [t.model_dump() for t in body.tasks] if body and body.tasks is not None else None
+        return act(run_id, lambda: runtime.approve_plan(run_id, tasks))
 
     @app.get("/runs")
     async def list_runs(limit: int = Query(20, ge=1, le=100)) -> list[dict]:
@@ -107,10 +141,8 @@ def create_app(runtime: ResearchRuntime, *, embedded_worker: bool = True, poll_i
 
     @app.post("/runs/{run_id}/resume", status_code=202)
     async def resume(run_id: str) -> RunView:
-        if view(run_id).status != "halted":
-            raise HTTPException(409, "only halted runs can be resumed; interrupted runs are picked up automatically")
-        store.requeue(run_id)
-        return view(run_id)
+        """Release a paused or budget-halted run. Crashed runs are picked up automatically."""
+        return act(run_id, lambda: runtime.unpause(run_id))
 
     @app.get("/runs/{run_id}/events")
     async def events(
@@ -130,7 +162,7 @@ def create_app(runtime: ResearchRuntime, *, embedded_worker: bool = True, poll_i
                     payload = json.dumps({"ts": ev.ts, **ev.payload}, ensure_ascii=False)
                     yield f"id: {ev.id}\nevent: {ev.kind}\ndata: {payload}\n\n"
                 status = store.status(run_id)
-                if status in TERMINAL or status == "halted":
+                if status in TERMINAL or status in ("halted", "paused", "awaiting_approval"):
                     if not store.events(run_id, after=cursor):
                         yield f"event: end\ndata: {json.dumps({'status': status})}\n\n"
                         return

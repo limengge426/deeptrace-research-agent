@@ -18,20 +18,21 @@ import socket
 import uuid
 from dataclasses import dataclass
 
-from . import planner, reporter, verifier
+from . import faithfulness, planner, reporter, verifier
 from .budget import Budget, BudgetExceeded, BudgetMeter, MeteredLLM
 from .executor import TaskExecutor
 from .ledger import EvidenceLedger
 from .llm import LLM
-from .models import Plan, RunState
+from .models import TERMINAL, Plan, PlanError, RunState, Task
 from .search import SearchProvider
 from .store import Lease, LeaseLost, RunStore
 
-TERMINAL = {"done", "failed"}
-
-
 class RunLocked(RuntimeError):
     """Another live worker holds this run's lease."""
+
+
+class InvalidAction(ValueError):
+    """The requested control action does not apply to the run's current status."""
 
 
 def default_owner() -> str:
@@ -46,7 +47,7 @@ class RunResult:
 
     @property
     def status(self) -> str:
-        return "halted" if self.state.error and self.state.stage not in TERMINAL else self.state.stage
+        return self.state.status
 
 
 @dataclass
@@ -57,6 +58,7 @@ class _Session:
     state: RunState
     lease: Lease
     llm: MeteredLLM
+    judge: MeteredLLM
     meter: BudgetMeter
     ledger: EvidenceLedger
     executor: TaskExecutor
@@ -78,6 +80,8 @@ class ResearchRuntime:
         owner: str | None = None,
         lease_ttl: float = 30.0,
         max_attempts: int = 3,
+        check_faithfulness: bool = True,
+        judge_llm: LLM | None = None,
     ) -> None:
         self.llm = llm
         self.search = search
@@ -91,22 +95,104 @@ class ResearchRuntime:
         self.owner = owner or default_owner()
         self.lease_ttl = lease_ttl
         self.max_attempts = max_attempts
+        self.check_faithfulness = check_faithfulness
+        self.judge_llm = judge_llm  # defaults to the main model; a separate judge avoids self-grading
 
     # -- public API --------------------------------------------------------
 
-    def create(self, question: str) -> str:
+    def create(self, question: str, *, approve_plan: bool = False) -> str:
         """Register a run without executing it; any worker can then claim it."""
-        run_id = self.store.create_run(RunState(question=question))
-        self.store.log(run_id, "run_created", question=question)
+        run_id = self.store.create_run(RunState(question=question, approve_plan=approve_plan))
+        self.store.log(run_id, "run_created", question=question, approve_plan=approve_plan)
         return run_id
 
-    async def start(self, question: str) -> RunResult:
-        return await self.resume(self.create(question))
+    async def start(self, question: str, *, approve_plan: bool = False) -> RunResult:
+        return await self.resume(self.create(question, approve_plan=approve_plan))
+
+    # -- human control -----------------------------------------------------
+
+    def cancel(self, run_id: str) -> str:
+        return self._control(run_id, "cancel")
+
+    def pause(self, run_id: str) -> str:
+        return self._control(run_id, "pause")
+
+    def _control(self, run_id: str, action: str) -> str:
+        """Request a cancel/pause; apply it right away if no worker is driving the run.
+
+        Returns the run's status afterwards ("cancelled"/"paused", or its current
+        status if a worker will apply the request at its next step boundary).
+        """
+        state = self.store.load(run_id)
+        if state.stage in TERMINAL or (action == "pause" and state.hold):
+            raise InvalidAction(f"cannot {action} a run that is {state.status}")
+        self.store.request_control(run_id, action)
+        self.store.log(run_id, "control_requested", action=action)
+        lease = self.store.acquire(run_id, self.owner, self.lease_ttl)
+        if lease is None:
+            return state.status  # the driving worker will pick the request up
+        try:
+            state = self.store.load(run_id)
+            if self._apply_control(run_id, state):
+                self.store.checkpoint(run_id, state, status=state.status, lease=lease)
+            return state.status
+        finally:
+            self.store.release(lease)
+
+    def _apply_control(self, run_id: str, state: RunState) -> bool:
+        action = self.store.take_control(run_id)
+        if action == "cancel" and state.stage not in TERMINAL:
+            state.stage, state.error, state.hold = "cancelled", "cancelled by user", None
+        elif action == "pause" and state.stage not in TERMINAL and not state.hold:
+            state.hold = "paused"
+        else:
+            return False
+        self.store.log(run_id, "control_applied", action=action, status=state.status)
+        return True
+
+    def unpause(self, run_id: str) -> str:
+        """Release a paused or budget-halted run so a worker picks it up again."""
+        state = self.store.load(run_id)
+        if state.status not in ("paused", "halted"):
+            raise InvalidAction(f"only paused or halted runs can be resumed; this one is {state.status}")
+        self.store.requeue(run_id)
+        self.store.log(run_id, "run_released", previous=state.status)
+        return self.store.load(run_id).status
+
+    def approve_plan(self, run_id: str, tasks: list[dict] | None = None) -> RunState:
+        """Approve the proposed plan, optionally replacing it with an edited one."""
+        state = self.store.load(run_id)
+        if state.hold != "awaiting_approval":
+            raise InvalidAction(f"run is {state.status}, not awaiting plan approval")
+        if tasks is not None:
+            try:
+                plan = Plan([
+                    Task(id=str(t["id"]), question=str(t["question"]).strip(),
+                         depends_on=[str(d) for d in t.get("depends_on", [])])
+                    for t in tasks
+                ])
+                if not plan.tasks:
+                    raise PlanError("the plan needs at least one task")
+                plan.validate()
+            except (KeyError, TypeError, AttributeError, PlanError) as exc:
+                raise InvalidAction(f"invalid plan: {exc}") from exc
+            state.plan = plan
+        state.hold = None
+        self.store.checkpoint(run_id, state, status=state.status)
+        self.store.log(run_id, "plan_approved", edited=tasks is not None,
+                       tasks=[{"id": t.id, "q": t.question, "deps": t.depends_on} for t in state.plan.tasks])
+        return state
+
+    # -- driving -------------------------------------------------------------
 
     async def resume(self, run_id: str) -> RunResult:
-        """Drive a run to completion (or a halt), holding its lease throughout."""
+        """Drive a run to completion (or a halt), holding its lease throughout.
+
+        Runs on hold (paused, awaiting plan approval) are returned untouched;
+        release them with ``unpause`` / ``approve_plan`` first.
+        """
         state = self.store.load(run_id)
-        if state.stage in TERMINAL:
+        if state.stage in TERMINAL or state.hold:
             return self._result(run_id, state, EvidenceLedger(state.evidence))
         lease = self.store.acquire(run_id, self.owner, self.lease_ttl)
         if lease is None:
@@ -114,7 +200,7 @@ class ResearchRuntime:
             detail = f" by {holder[0]} (lease expires in {holder[1]:.0f}s)" if holder else ""
             raise RunLocked(f"run {run_id} is being driven{detail}")
         state = self.store.load(run_id)  # re-read: the previous owner may have progressed
-        if state.stage in TERMINAL:
+        if state.stage in TERMINAL or state.hold:
             self.store.release(lease)
             return self._result(run_id, state, EvidenceLedger(state.evidence))
         state.error = None
@@ -168,10 +254,14 @@ class ResearchRuntime:
             hits_per_query=self.hits_per_query,
             concurrency=self.concurrency,
         )
-        s = _Session(run_id, state, lease, llm, meter, ledger, executor)
+        judge = MeteredLLM(self.judge_llm, meter) if self.judge_llm else llm
+        s = _Session(run_id, state, lease, llm, judge, meter, ledger, executor)
 
         try:
-            while state.stage not in TERMINAL:
+            while state.stage not in TERMINAL and not state.hold:
+                if self._apply_control(run_id, state):  # cancel/pause requested since the last step
+                    self._checkpoint(s)
+                    continue
                 before = state.stage
                 await getattr(self, f"_{state.stage}")(s)
                 self._checkpoint(s)
@@ -193,21 +283,19 @@ class ResearchRuntime:
 
         if state.stage in TERMINAL:
             self.store.log(run_id, "run_finished", status=state.stage, usage=meter.snapshot())
+        elif state.hold:
+            self.store.log(run_id, "run_held", status=state.hold, stage=state.stage)
         return self._result(run_id, state, ledger)
 
     def _checkpoint(self, s: _Session) -> None:
         s.state.evidence = s.ledger.items()
         s.state.usage = s.meter.snapshot()
-        self.store.checkpoint(s.run_id, s.state, status=self._status(s.state), lease=s.lease)
-
-    @staticmethod
-    def _status(state: RunState) -> str:
-        return "halted" if state.error and state.stage not in TERMINAL else state.stage
+        self.store.checkpoint(s.run_id, s.state, status=s.state.status, lease=s.lease)
 
     def _result(self, run_id: str, state: RunState, ledger: EvidenceLedger) -> RunResult:
         markdown = None
         if state.stage == "done" and state.report:
-            notes = [i.detail for i in state.issues if i.code != "unknown_citation"]
+            notes = [i.note or i.detail for i in state.issues if i.code != "unknown_citation"]
             markdown = reporter.render_markdown(state.report, ledger, notes=notes)
         return RunResult(run_id, state, markdown)
 
@@ -218,6 +306,8 @@ class ResearchRuntime:
         s.state.plan = Plan(tasks)
         s.state.stage = "execute"
         self.store.log(s.run_id, "plan", tasks=[{"id": t.id, "q": t.question, "deps": t.depends_on} for t in tasks])
+        if s.state.approve_plan:
+            s.state.hold = "awaiting_approval"
 
     async def _execute(self, s: _Session) -> None:
         """Run one wave per call so each finished wave is checkpointed."""
@@ -244,6 +334,12 @@ class ResearchRuntime:
         verdict = verifier.check_report(
             state.report, state.plan, state.findings, s.ledger, addressed_gaps=state.gaps
         )
+        if self.check_faithfulness and not verdict.report_issues:
+            # Only judge drafts that already pass the structural checks; others get rewritten anyway.
+            judged = await faithfulness.check_faithfulness(s.judge, state.report, s.ledger)
+            state.faithfulness.append(judged.summary())
+            verdict.issues += judged.issues()
+            self.store.log(s.run_id, "faithfulness", **judged.summary())
         if verdict.passed and self.critic and state.replans < self.budget.max_replans:
             markdown = reporter.render_markdown(state.report, s.ledger)
             verdict.gaps += [g for g in await verifier.critic_gaps(s.llm, state.question, markdown) if g not in state.gaps]

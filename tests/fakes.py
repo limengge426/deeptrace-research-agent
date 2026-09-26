@@ -52,6 +52,11 @@ def replan(system: str, user: str) -> dict:
     return {"tasks": [{"id": f"{prefix}1", "question": "Heat pump performance below -15C", "depends_on": []}]}
 
 
+def judge_all(user: str, label: str) -> dict:
+    ids = re.findall(r"^(\d+)\. ", user.split("Claims:", 1)[1], re.MULTILINE)
+    return {"verdicts": [{"id": int(i), "label": label, "reason": "scripted"} for i in ids]}
+
+
 def plan_or_replan(system: str, user: str) -> dict:
     return replan(system, user) if "verifier found these gaps" in user else plan_three(system, user)
 
@@ -62,6 +67,7 @@ DEFAULT_HANDLERS: dict[str, Handler] = {
     "finding": finding,
     "report": report,
     "critic": lambda s, u: {"gaps": []},
+    "judge": lambda s, u: judge_all(u, "supported"),
 }
 
 

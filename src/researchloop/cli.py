@@ -11,7 +11,7 @@ from pathlib import Path
 
 from .budget import Budget
 from .llm import LLMError, OpenAICompatLLM
-from .runtime import ResearchRuntime, RunLocked, RunResult
+from .runtime import InvalidAction, ResearchRuntime, RunLocked, RunResult
 from .search import LocalCorpusSearch, SearchProvider, TavilySearch
 from .store import RunStore
 
@@ -46,10 +46,19 @@ def _report(result: RunResult, out_dir: Path) -> int:
         path.write_text(result.markdown, encoding="utf-8")
         print(f"report: {path}")
         return 0
+    if result.status == "awaiting_approval":
+        print("proposed plan:")
+        for t in state.plan.tasks:
+            deps = f"  (after {', '.join(t.depends_on)})" if t.depends_on else ""
+            print(f"  {t.id}: {t.question}{deps}")
+        print(f"approve with: researchloop approve {result.run_id} [--plan edited.json], then resume")
+        return 0
     if state.error:
         print(f"stopped: {state.error}")
     if result.status == "halted":
         print(f"continue with: researchloop resume {result.run_id} --max-tokens <larger>")
+    if result.status == "paused":
+        print(f"continue with: researchloop resume {result.run_id}")
     return 1
 
 
@@ -98,6 +107,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     run = sub.add_parser("run", help="start a new research run", parents=[common])
     run.add_argument("question")
+    run.add_argument("--approve-plan", action="store_true", help="stop after planning for human approval")
     add_run_options(run)
 
     resume = sub.add_parser("resume", help="continue an interrupted or halted run", parents=[common])
@@ -108,6 +118,14 @@ def build_parser() -> argparse.ArgumentParser:
     show.add_argument("run_id")
 
     sub.add_parser("list", help="list recent runs", parents=[common])
+
+    for name, text in (("cancel", "cancel a run"), ("pause", "pause a run at its next step boundary")):
+        p = sub.add_parser(name, help=text, parents=[common])
+        p.add_argument("run_id")
+
+    approve = sub.add_parser("approve", help="approve a run's proposed plan", parents=[common])
+    approve.add_argument("run_id")
+    approve.add_argument("--plan", help='JSON file with an edited plan: [{"id", "question", "depends_on"}]')
 
     worker = sub.add_parser("worker", help="claim and execute queued runs until stopped", parents=[common])
     add_run_options(worker)
@@ -157,8 +175,10 @@ async def _run(args: argparse.Namespace, store: RunStore) -> int:
     runtime = _runtime(args, store)
     try:
         if args.command == "run":
-            result = await runtime.start(args.question)
+            result = await runtime.start(args.question, approve_plan=args.approve_plan)
         else:
+            if store.load(args.run_id).status in ("paused", "halted"):
+                runtime.unpause(args.run_id)
             result = await _resume_when_free(runtime, args.run_id)
     finally:
         await _close(runtime)
@@ -174,6 +194,24 @@ async def _work(args: argparse.Namespace, store: RunStore) -> int:
         await Worker(runtime, max_active=args.max_active).run()
     finally:
         await _close(runtime)
+    return 0
+
+
+def _control(args: argparse.Namespace, store: RunStore) -> int:
+    import json
+
+    # Control actions touch only the store; no model or search provider is needed.
+    runtime = ResearchRuntime(None, None, store)  # type: ignore[arg-type]
+    try:
+        if args.command == "approve":
+            tasks = json.loads(Path(args.plan).read_text()) if args.plan else None
+            status = runtime.approve_plan(args.run_id, tasks).status
+        else:
+            status = getattr(runtime, args.command)(args.run_id)
+    except (InvalidAction, KeyError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print(f"run {args.run_id}: {status}")
     return 0
 
 
@@ -198,6 +236,8 @@ def main(argv: list[str] | None = None) -> int:
             return _show(store, args.run_id)
         if args.command == "list":
             return _list(store)
+        if args.command in ("cancel", "pause", "approve"):
+            return _control(args, store)
         if args.command == "serve":
             return _serve(args, store)
         if args.command == "worker":

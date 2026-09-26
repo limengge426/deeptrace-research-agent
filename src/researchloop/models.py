@@ -11,6 +11,9 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 
 CITATION_RE = re.compile(r"\[(E\d+)\]")
+TERMINAL = frozenset({"done", "failed", "cancelled"})
+# Statuses a worker must not pick up: finished, or waiting for a human.
+NOT_CLAIMABLE = ("done", "failed", "cancelled", "halted", "paused", "awaiting_approval")
 
 
 class PlanError(ValueError):
@@ -121,13 +124,14 @@ class Report:
 class Issue:
     kind: str  # "report" issues are fixed by rewriting; "evidence" issues by replanning
     code: str
-    detail: str
+    detail: str  # instruction for the model that repairs the report
+    note: str | None = None  # reader-facing wording for the Limitations section, if different
 
 
 @dataclass
 class RunState:
     question: str
-    stage: str = "plan"  # plan | execute | report | verify | done | failed
+    stage: str = "plan"  # plan | execute | report | verify | done | failed | cancelled
     plan: Plan = field(default_factory=Plan)
     findings: dict[str, Finding] = field(default_factory=dict)
     evidence: list[Evidence] = field(default_factory=list)
@@ -138,6 +142,9 @@ class RunState:
     repairs: int = 0
     usage: dict[str, float] = field(default_factory=dict)
     error: str | None = None
+    faithfulness: list[dict[str, float]] = field(default_factory=list)  # one summary per judged draft
+    hold: str | None = None  # "paused" | "awaiting_approval": not claimable until released
+    approve_plan: bool = False  # stop after planning until a human approves (or edits) the plan
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -158,4 +165,18 @@ class RunState:
             repairs=data["repairs"],
             usage=dict(data["usage"]),
             error=data.get("error"),
+            faithfulness=list(data.get("faithfulness", [])),
+            hold=data.get("hold"),
+            approve_plan=bool(data.get("approve_plan", False)),
         )
+
+    @property
+    def status(self) -> str:
+        """Externally visible status: a terminal stage, a hold, "halted", or the current stage."""
+        if self.stage in TERMINAL:
+            return self.stage
+        if self.hold:
+            return self.hold
+        if self.error:
+            return "halted"
+        return self.stage
