@@ -158,6 +158,11 @@ class RunStore:
             raise KeyError(f"no run with id {run_id!r}")
         return RunState.from_dict(json.loads(row[0]))
 
+    def states(self, limit: int = 1000) -> list[RunState]:
+        """Most recent run states, newest first (for metrics aggregation)."""
+        rows = self._conn.execute("SELECT state FROM runs ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
+        return [RunState.from_dict(json.loads(row[0])) for row in rows]
+
     def runs(self, limit: int = 20) -> list[RunRecord]:
         rows = self._conn.execute(
             "SELECT id, question, status, created_at, updated_at FROM runs ORDER BY created_at DESC LIMIT ?",

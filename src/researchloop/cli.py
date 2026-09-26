@@ -71,6 +71,18 @@ def _show(store: RunStore, run_id: str) -> int:
     for ev in events:
         detail = " ".join(f"{k}={v}" for k, v in ev.payload.items())
         print(f"{ev.ts - t0:7.1f}s  {ev.kind:<16} {detail[:160]}")
+
+    from .metrics import run_metrics
+
+    m = run_metrics(store.load(run_id))
+    print("\nLLM calls by purpose        calls   tokens   seconds")
+    for purpose, v in sorted(m["llm"].items(), key=lambda kv: -kv[1]["tokens"]):
+        print(f"  {purpose:<24} {v['calls']:>6.0f} {v['tokens']:>8,.0f} {v['seconds']:>9.1f}")
+    print("time by stage               steps  seconds")
+    for stage, v in m["stages"].items():
+        print(f"  {stage:<24} {v['steps']:>6.0f} {v['seconds']:>8.1f}")
+    for tool, v in m["tools"].items():
+        print(f"tool {tool}: {v['calls']:.0f} calls, {v['cache_hits']:.0f} cache hits, {v['errors']:.0f} errors")
     return 0
 
 

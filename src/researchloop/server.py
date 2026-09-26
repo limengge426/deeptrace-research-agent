@@ -18,6 +18,7 @@ from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
+from . import metrics as run_metrics
 from .models import TERMINAL
 from .runtime import InvalidAction, ResearchRuntime
 from .worker import Worker
@@ -130,6 +131,19 @@ def create_app(runtime: ResearchRuntime, *, embedded_worker: bool = True, poll_i
     @app.get("/runs/{run_id}")
     async def get_run(run_id: str) -> RunView:
         return view(run_id)
+
+    @app.get("/runs/{run_id}/metrics")
+    async def get_run_metrics(run_id: str) -> dict:
+        view(run_id)
+        return run_metrics.run_metrics(store.load(run_id))
+
+    @app.get("/metrics")
+    async def get_metrics(format: str = Query("json", pattern="^(json|prometheus)$"), limit: int = 1000):
+        """Aggregate metrics over recent runs; ?format=prometheus for scraping."""
+        summary = run_metrics.summarize(store.states(limit))
+        if format == "prometheus":
+            return PlainTextResponse(run_metrics.to_prometheus(summary), media_type="text/plain; version=0.0.4")
+        return summary
 
     @app.get("/runs/{run_id}/report", response_class=PlainTextResponse)
     async def get_report(run_id: str) -> str:

@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
+from typing import Any
 
 from .llm import LLM, Completion
+from .metrics import RunMetrics
 
 
 class BudgetExceeded(RuntimeError):
@@ -31,8 +33,11 @@ class BudgetMeter:
     sessions already spent.
     """
 
-    def __init__(self, budget: Budget, usage: dict[str, float] | None = None) -> None:
+    def __init__(
+        self, budget: Budget, usage: dict[str, float] | None = None, metrics: dict[str, Any] | None = None
+    ) -> None:
         self.budget = budget
+        self.metrics = RunMetrics(metrics)
         usage = usage or {}
         self.tokens = int(usage.get("tokens", 0))
         self.tool_calls = int(usage.get("tool_calls", 0))
@@ -75,7 +80,13 @@ class MeteredLLM:
 
     async def complete(self, system: str, user: str, *, purpose: str, json_mode: bool = False) -> Completion:
         self.meter.check()
-        result = await self.inner.complete(system, user, purpose=purpose, json_mode=json_mode)
+        started = time.monotonic()
+        try:
+            result = await self.inner.complete(system, user, purpose=purpose, json_mode=json_mode)
+        except Exception:
+            self.meter.metrics.record_llm(purpose, tokens=0, seconds=time.monotonic() - started, error=True)
+            raise
         self.meter.tokens += result.tokens
         self.meter.llm_calls += 1
+        self.meter.metrics.record_llm(purpose, tokens=result.tokens, seconds=time.monotonic() - started)
         return result

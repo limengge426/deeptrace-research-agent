@@ -145,6 +145,7 @@ class RunState:
     faithfulness: list[dict[str, float]] = field(default_factory=list)  # one summary per judged draft
     hold: str | None = None  # "paused" | "awaiting_approval": not claimable until released
     approve_plan: bool = False  # stop after planning until a human approves (or edits) the plan
+    metrics: dict = field(default_factory=dict)  # see metrics.RunMetrics
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -168,6 +169,7 @@ class RunState:
             faithfulness=list(data.get("faithfulness", [])),
             hold=data.get("hold"),
             approve_plan=bool(data.get("approve_plan", False)),
+            metrics=dict(data.get("metrics", {})),
         )
 
     @property

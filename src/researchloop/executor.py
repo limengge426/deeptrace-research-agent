@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from dataclasses import asdict
 
 from . import prompts
@@ -102,9 +103,17 @@ class TaskExecutor:
         key = RunStore.tool_key(self.run_id, self.search.name, args)
         cached = self.store.cached(key)
         if cached is not None:
+            self.meter.metrics.record_tool(self.search.name, cached=True)
             return [SearchHit(**h) for h in cached]
         self.meter.charge_tool_call()
-        hits = await self.search.search(query, self.hits_per_query)
+        started = time.monotonic()
+        try:
+            hits = await self.search.search(query, self.hits_per_query)
+        except Exception:
+            self.meter.metrics.record_tool(self.search.name, cached=False, seconds=time.monotonic() - started,
+                                           error=True)
+            raise
+        self.meter.metrics.record_tool(self.search.name, cached=False, seconds=time.monotonic() - started)
         self.store.cache(key, self.run_id, [asdict(h) for h in hits])
         self.store.log(self.run_id, "tool_call", tool=self.search.name, query=query, hits=len(hits))
         return hits

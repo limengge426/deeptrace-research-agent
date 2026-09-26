@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import os
 import socket
+import time
 import uuid
 from dataclasses import dataclass
 
@@ -240,7 +241,7 @@ class ResearchRuntime:
     # -- loop --------------------------------------------------------------
 
     async def _drive(self, run_id: str, state: RunState, lease: Lease) -> RunResult:
-        meter = BudgetMeter(self.budget, state.usage)
+        meter = BudgetMeter(self.budget, state.usage, state.metrics)
         llm = MeteredLLM(self.llm, meter)
         ledger = EvidenceLedger(state.evidence)
         executor = TaskExecutor(
@@ -263,7 +264,9 @@ class ResearchRuntime:
                     self._checkpoint(s)
                     continue
                 before = state.stage
+                started = time.monotonic()
                 await getattr(self, f"_{state.stage}")(s)
+                meter.metrics.record_stage(before, time.monotonic() - started)
                 self._checkpoint(s)
                 if state.stage != before:
                     self.store.log(run_id, "stage", frm=before, to=state.stage)
@@ -290,6 +293,7 @@ class ResearchRuntime:
     def _checkpoint(self, s: _Session) -> None:
         s.state.evidence = s.ledger.items()
         s.state.usage = s.meter.snapshot()
+        s.state.metrics = s.meter.metrics.to_dict()
         self.store.checkpoint(s.run_id, s.state, status=s.state.status, lease=s.lease)
 
     def _result(self, run_id: str, state: RunState, ledger: EvidenceLedger) -> RunResult:
