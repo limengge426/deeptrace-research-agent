@@ -12,6 +12,7 @@ import asyncio
 import json
 import os
 import random
+import re
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -60,7 +61,7 @@ class OpenAICompatLLM:
         *,
         temperature: float = 0.2,
         timeout: float = 90.0,
-        max_retries: int = 4,
+        max_retries: int = 6,
     ) -> None:
         self.model = model
         self.temperature = temperature
@@ -110,11 +111,40 @@ class OpenAICompatLLM:
                     return Completion(text=text, tokens=int(tokens))
                 if resp.status_code not in self.RETRYABLE or attempt == self.max_retries:
                     raise LLMError(f"{purpose}: HTTP {resp.status_code}: {resp.text[:300]}")
+                hinted = retry_after(resp.headers)
+                if hinted is not None:
+                    # Rate limited: wait as long as the server asks (plus jitter), not our own guess.
+                    await self._sleep(min(hinted, 60.0) + random.random())
+                    continue
             await self._sleep(min(2**attempt, 20) + random.random())
         raise LLMError(f"{purpose}: retries exhausted")
 
     async def aclose(self) -> None:
         await self._client.aclose()
+
+
+_DURATION_RE = re.compile(r"(?:(\d+(?:\.\d+)?)h)?(?:(\d+(?:\.\d+)?)m(?!s))?(?:(\d+(?:\.\d+)?)s)?(?:(\d+)ms)?$")
+
+
+def retry_after(headers: httpx.Headers) -> float | None:
+    """Seconds to wait before retrying, from Retry-After or OpenAI-style rate-limit reset headers."""
+    if "retry-after-ms" in headers:
+        try:
+            return float(headers["retry-after-ms"]) / 1000
+        except ValueError:
+            pass
+    if "retry-after" in headers:
+        try:
+            return float(headers["retry-after"])
+        except ValueError:
+            pass
+    waits = []
+    for name in ("x-ratelimit-reset-tokens", "x-ratelimit-reset-requests"):
+        match = _DURATION_RE.match(headers.get(name, "").strip())
+        if match and any(match.groups()):
+            h, m, sec, ms = (float(g) if g else 0.0 for g in match.groups())
+            waits.append(h * 3600 + m * 60 + sec + ms / 1000)
+    return max(waits) if waits else None
 
 
 def parse_json_object(text: str) -> dict[str, Any]:

@@ -18,7 +18,7 @@ def _bucket(table: dict[str, dict[str, float]], key: str, fields: tuple[str, ...
 
 
 class RunMetrics:
-    LLM_FIELDS = ("calls", "tokens", "seconds", "errors")
+    LLM_FIELDS = ("calls", "tokens", "seconds", "errors", "max_call_tokens")
     TOOL_FIELDS = ("calls", "cache_hits", "seconds", "errors")
     STAGE_FIELDS = ("steps", "seconds")
 
@@ -34,6 +34,7 @@ class RunMetrics:
         b["tokens"] += tokens
         b["seconds"] = round(b["seconds"] + seconds, 3)
         b["errors"] += int(error)
+        b["max_call_tokens"] = max(b.get("max_call_tokens", 0), tokens)  # largest single prompt + reply
 
     def record_tool(self, tool: str, *, cached: bool, seconds: float = 0.0, error: bool = False) -> None:
         b = _bucket(self.tools, tool, self.TOOL_FIELDS)
@@ -96,7 +97,7 @@ def summarize(states: Iterable[RunState]) -> dict[str, Any]:
             for key, fields in source.items():
                 agg = table.setdefault(key, {})
                 for f, v in fields.items():
-                    agg[f] = round(agg.get(f, 0) + v, 3)
+                    agg[f] = max(agg.get(f, 0), v) if f == "max_call_tokens" else round(agg.get(f, 0) + v, 3)
 
     done = [st for st in states if st.status == "done"]
     seconds = [st.usage.get("seconds", 0.0) for st in done]

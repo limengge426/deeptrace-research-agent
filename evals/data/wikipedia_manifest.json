@@ -1,0 +1,247 @@
+{
+  "source": "en.wikipedia.org",
+  "license": "CC BY-SA 4.0",
+  "resolved_at": "2026-09-25",
+  "articles": [
+    {
+      "topic": "energy",
+      "title": "Heat pump",
+      "revid": 1376159882,
+      "timestamp": "2026-09-22T12:35:38Z"
+    },
+    {
+      "topic": "energy",
+      "title": "Solar panel",
+      "revid": 1376338048,
+      "timestamp": "2026-09-23T15:03:02Z"
+    },
+    {
+      "topic": "energy",
+      "title": "Wind turbine",
+      "revid": 1376155464,
+      "timestamp": "2026-09-22T11:50:42Z"
+    },
+    {
+      "topic": "energy",
+      "title": "Nuclear power",
+      "revid": 1376008950,
+      "timestamp": "2026-09-21T12:54:34Z"
+    },
+    {
+      "topic": "energy",
+      "title": "Lithium-ion battery",
+      "revid": 1376464734,
+      "timestamp": "2026-09-24T08:00:57Z"
+    },
+    {
+      "topic": "energy",
+      "title": "Hydrogen economy",
+      "revid": 1375504403,
+      "timestamp": "2026-09-18T05:11:41Z"
+    },
+    {
+      "topic": "energy",
+      "title": "Geothermal energy",
+      "revid": 1376498111,
+      "timestamp": "2026-09-24T14:23:34Z"
+    },
+    {
+      "topic": "energy",
+      "title": "Electric vehicle",
+      "revid": 1376118079,
+      "timestamp": "2026-09-22T04:23:55Z"
+    },
+    {
+      "topic": "energy",
+      "title": "Smart grid",
+      "revid": 1375121606,
+      "timestamp": "2026-09-16T00:01:48Z"
+    },
+    {
+      "topic": "energy",
+      "title": "Coal-fired power station",
+      "revid": 1376180892,
+      "timestamp": "2026-09-22T15:47:05Z"
+    },
+    {
+      "topic": "biomedicine",
+      "title": "MRNA vaccine",
+      "revid": 1376573699,
+      "timestamp": "2026-09-25T00:57:08Z"
+    },
+    {
+      "topic": "biomedicine",
+      "title": "CRISPR gene editing",
+      "revid": 1375110502,
+      "timestamp": "2026-09-15T22:53:01Z"
+    },
+    {
+      "topic": "biomedicine",
+      "title": "Antimicrobial resistance",
+      "revid": 1374703868,
+      "timestamp": "2026-09-13T16:51:48Z"
+    },
+    {
+      "topic": "biomedicine",
+      "title": "Insulin",
+      "revid": 1373900133,
+      "timestamp": "2026-09-08T16:39:50Z"
+    },
+    {
+      "topic": "biomedicine",
+      "title": "Penicillin",
+      "revid": 1368621719,
+      "timestamp": "2026-08-10T03:36:24Z"
+    },
+    {
+      "topic": "biomedicine",
+      "title": "Malaria",
+      "revid": 1374817286,
+      "timestamp": "2026-09-14T06:38:43Z"
+    },
+    {
+      "topic": "biomedicine",
+      "title": "Gut microbiota",
+      "revid": 1373502066,
+      "timestamp": "2026-09-06T09:18:24Z"
+    },
+    {
+      "topic": "biomedicine",
+      "title": "Alzheimer's disease",
+      "revid": 1375058357,
+      "timestamp": "2026-09-15T16:19:12Z"
+    },
+    {
+      "topic": "biomedicine",
+      "title": "Type 2 diabetes",
+      "revid": 1375527475,
+      "timestamp": "2026-09-18T09:33:15Z"
+    },
+    {
+      "topic": "biomedicine",
+      "title": "Vaccination",
+      "revid": 1372277133,
+      "timestamp": "2026-08-31T02:58:36Z"
+    },
+    {
+      "topic": "computing",
+      "title": "Transformer (deep learning)",
+      "revid": 1376741718,
+      "timestamp": "2026-09-26T00:13:53Z"
+    },
+    {
+      "topic": "computing",
+      "title": "Large language model",
+      "revid": 1376616067,
+      "timestamp": "2026-09-25T05:43:16Z"
+    },
+    {
+      "topic": "computing",
+      "title": "Reinforcement learning from human feedback",
+      "revid": 1376235007,
+      "timestamp": "2026-09-22T23:27:23Z"
+    },
+    {
+      "topic": "computing",
+      "title": "Quantum computing",
+      "revid": 1375368280,
+      "timestamp": "2026-09-17T11:28:10Z"
+    },
+    {
+      "topic": "computing",
+      "title": "Public-key cryptography",
+      "revid": 1375420479,
+      "timestamp": "2026-09-17T17:43:17Z"
+    },
+    {
+      "topic": "computing",
+      "title": "Blockchain",
+      "revid": 1374155035,
+      "timestamp": "2026-09-10T04:15:42Z"
+    },
+    {
+      "topic": "computing",
+      "title": "Moore's law",
+      "revid": 1372775556,
+      "timestamp": "2026-09-02T05:47:47Z"
+    },
+    {
+      "topic": "computing",
+      "title": "Graphics processing unit",
+      "revid": 1376564485,
+      "timestamp": "2026-09-24T23:40:35Z"
+    },
+    {
+      "topic": "computing",
+      "title": "Retrieval-augmented generation",
+      "revid": 1375082076,
+      "timestamp": "2026-09-15T19:26:48Z"
+    },
+    {
+      "topic": "computing",
+      "title": "Convolutional neural network",
+      "revid": 1372994421,
+      "timestamp": "2026-09-03T11:33:16Z"
+    },
+    {
+      "topic": "history",
+      "title": "Great Depression",
+      "revid": 1376600053,
+      "timestamp": "2026-09-25T03:38:23Z"
+    },
+    {
+      "topic": "history",
+      "title": "Bretton Woods system",
+      "revid": 1374837351,
+      "timestamp": "2026-09-14T10:35:42Z"
+    },
+    {
+      "topic": "history",
+      "title": "Industrial Revolution",
+      "revid": 1376088886,
+      "timestamp": "2026-09-22T00:34:25Z"
+    },
+    {
+      "topic": "history",
+      "title": "Printing press",
+      "revid": 1376640142,
+      "timestamp": "2026-09-25T10:59:54Z"
+    },
+    {
+      "topic": "history",
+      "title": "Silk Road",
+      "revid": 1374791196,
+      "timestamp": "2026-09-14T03:02:04Z"
+    },
+    {
+      "topic": "history",
+      "title": "Marshall Plan",
+      "revid": 1375735642,
+      "timestamp": "2026-09-19T18:39:29Z"
+    },
+    {
+      "topic": "history",
+      "title": "Euro",
+      "revid": 1375679041,
+      "timestamp": "2026-09-19T08:39:47Z"
+    },
+    {
+      "topic": "history",
+      "title": "Hyperinflation",
+      "revid": 1374094809,
+      "timestamp": "2026-09-09T20:27:28Z"
+    },
+    {
+      "topic": "history",
+      "title": "Black Death",
+      "revid": 1376547540,
+      "timestamp": "2026-09-24T21:10:26Z"
+    },
+    {
+      "topic": "history",
+      "title": "Green Revolution",
+      "revid": 1375609814,
+      "timestamp": "2026-09-18T21:34:17Z"
+    }
+  ]
+}

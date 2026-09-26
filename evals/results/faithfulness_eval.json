@@ -1,0 +1,71 @@
+{
+  "writer_model": "gpt-4o-mini",
+  "grader_model": "gpt-4o",
+  "questions": 24,
+  "configs": {
+    "single": {
+      "runs": 24,
+      "support_rate_mean": 0.7672916666666667,
+      "claims": 333,
+      "claims_per_report": 13.875,
+      "unsupported_or_contradicted_share": 0.03303303303303303,
+      "uncited_figures_per_report": 0.3333333333333333,
+      "tokens_mean": 11193.666666666666,
+      "report_tokens_mean": 3971.25,
+      "judge_tokens_mean": 0,
+      "max_report_call_tokens_mean": 2785.6666666666665,
+      "max_report_call_tokens_max": 3529,
+      "repairs_mean": 0.4166666666666667,
+      "seconds_mean": 19.920833333333334
+    },
+    "sections": {
+      "runs": 24,
+      "support_rate_mean": 0.7711125,
+      "claims": 385,
+      "claims_per_report": 16.041666666666668,
+      "unsupported_or_contradicted_share": 0.033766233766233764,
+      "uncited_figures_per_report": 0.041666666666666664,
+      "tokens_mean": 13568.5,
+      "report_tokens_mean": 6352.625,
+      "judge_tokens_mean": 0,
+      "max_report_call_tokens_mean": 1641.8333333333333,
+      "max_report_call_tokens_max": 2730,
+      "repairs_mean": 0.25,
+      "seconds_mean": 17.166666666666668
+    },
+    "sections+judge": {
+      "runs": 24,
+      "support_rate_mean": 0.7706958333333334,
+      "claims": 371,
+      "claims_per_report": 15.458333333333334,
+      "unsupported_or_contradicted_share": 0.0215633423180593,
+      "uncited_figures_per_report": 0,
+      "tokens_mean": 19654.125,
+      "report_tokens_mean": 6952.125,
+      "judge_tokens_mean": 5527.708333333333,
+      "max_report_call_tokens_mean": 1620.25,
+      "max_report_call_tokens_max": 2282,
+      "repairs_mean": 0.5416666666666666,
+      "seconds_mean": 27.458333333333332
+    }
+  },
+  "detection": {
+    "citation_swap": {
+      "cases": 0,
+      "caught": 0,
+      "recall": null,
+      "recall_incl_partial": null,
+      "generated": 0
+    },
+    "fact_edit": {
+      "cases": 0,
+      "caught": 0,
+      "recall": null,
+      "recall_incl_partial": null,
+      "generated": 0
+    },
+    "false_alarm_rate": null,
+    "originals": 0
+  },
+  "generated_at": "2026-09-26"
+}

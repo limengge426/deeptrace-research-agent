@@ -44,6 +44,25 @@ def test_llm_retries_rate_limits_then_succeeds():
     assert (result.text, result.tokens) == ("hi", 42)
 
 
+def test_llm_waits_as_long_as_the_rate_limit_headers_ask(monkeypatch):
+    waits = []
+
+    async def record(seconds):
+        waits.append(seconds)
+
+    monkeypatch.setattr(OpenAICompatLLM, "_sleep", staticmethod(record))
+    responses = iter([
+        httpx.Response(429, headers={"retry-after": "7"}),
+        httpx.Response(429, headers={"x-ratelimit-reset-tokens": "1m2.5s"}),
+        httpx.Response(429, headers={"x-ratelimit-reset-tokens": "450ms"}),
+    ])
+    llm = _llm_with(lambda r: next(responses, None) or _ok("done"))
+    llm.max_retries = 5
+    assert asyncio.run(llm.complete("s", "u", purpose="t")).text == "done"
+    # Server hints (the second capped at 60 s), each plus up to 1 s of jitter.
+    assert 7 <= waits[0] < 8 and 60 <= waits[1] < 61 and 0.45 <= waits[2] < 1.45
+
+
 def test_llm_drops_response_format_when_server_rejects_it():
     bodies = []
 

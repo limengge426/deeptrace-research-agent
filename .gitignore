@@ -6,3 +6,6 @@ __pycache__/
 *.db-*
 reports/
 .env
+evals/data/wikipedia/
+evals/data/*.db*
+evals/data/eval_*.jsonl
