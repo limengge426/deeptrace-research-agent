@@ -228,19 +228,19 @@ def create_app(runtime: ResearchRuntime, *, embedded_worker: bool = True, poll_i
 def app_from_env() -> FastAPI:
     """App factory configured from environment variables (used by Docker)."""
     from .budget import Budget
+    from .factory import make_researcher, make_search
     from .llm import OpenAICompatLLM
-    from .search import LocalCorpusSearch, TavilySearch
     from .store import RunStore
-
     from .tools import FetchPageTool
 
     corpus = getenv("CORPUS")
     runtime = ResearchRuntime(
         OpenAICompatLLM.from_env(),
-        LocalCorpusSearch(corpus) if corpus else TavilySearch(),
-        RunStore(getenv("DB", "deeptrace.db")),
+        make_search(corpus, getenv("RETRIEVAL", "bm25")),
+        RunStore(getenv("DB", "deeptrace.db")),  # a path (SQLite) or a URL such as postgresql+psycopg://...
         budget=Budget(max_tokens=int(getenv("MAX_TOKENS", "250000"))),
         fetch=None if corpus else FetchPageTool(),
+        researcher=make_researcher(getenv("RESEARCHER", "pipeline")),
     )
     embedded = getenv("EMBEDDED_WORKER", "1") != "0"
     return create_app(runtime, embedded_worker=embedded)

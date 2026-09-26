@@ -142,8 +142,11 @@ class InjectingStore(_Store):
 
     def checkpoint(self, run_id, state, *, status, lease=None):
         # Label with the stage recorded on disk, i.e. the stage whose work was just completed.
-        row = self._conn.execute("SELECT status FROM runs WHERE id = ?", (run_id,)).fetchone()
-        self.injector.hit("checkpoint", row[0] if row else state.stage)
+        try:
+            on_disk = self.status(run_id)
+        except KeyError:
+            on_disk = state.stage
+        self.injector.hit("checkpoint", on_disk)
         super().checkpoint(run_id, state, status=status, lease=lease)
 
 

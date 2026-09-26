@@ -32,5 +32,32 @@ services:
     deploy:
       replicas: 2
 
+  # Optional backing services, started with --profile:
+  #   docker compose --profile postgres up   then set DEEPTRACE_DB=postgresql+psycopg://deeptrace:deeptrace@postgres/deeptrace
+  #   docker compose --profile graph up      then set NEO4J_URI=bolt://neo4j:7687 and DEEPTRACE_RETRIEVAL=graph
+  postgres:
+    image: postgres:16
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_USER: deeptrace
+      POSTGRES_PASSWORD: deeptrace
+      POSTGRES_DB: deeptrace
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  neo4j:
+    image: neo4j:5.26
+    profiles: ["graph"]
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-change-me}
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_pagecache_size: 128m
+    ports:
+      - "7474:7474"
+    volumes:
+      - neo4jdata:/data
+
 volumes:
   data:
+  pgdata:
+  neo4jdata:

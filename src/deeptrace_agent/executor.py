@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+from typing import Any
 
 from . import prompts
 from .budget import BudgetExceeded, BudgetMeter
 from .ledger import EvidenceLedger
 from .llm import LLM, LLMFormatError, parse_json_object
-from .models import CITATION_RE, Finding, Task
+from .models import CITATION_RE, Evidence, Finding, Task
 from .search import SearchHit, SearchProvider
 from .store import RunStore
 from .tools import FetchPageTool, SearchTool, ToolOutcomeUnknown, ToolRunner, best_passages
@@ -32,6 +33,7 @@ class TaskExecutor:
         concurrency: int = 3,
         fetch: FetchPageTool | None = None,
         fetch_pages: int = 0,
+        researcher: Any = None,
     ) -> None:
         self.llm = llm
         self.search = search
@@ -39,6 +41,7 @@ class TaskExecutor:
         self.fetch = fetch
         self.fetch_pages = fetch_pages if fetch else 0
         self.tools = ToolRunner(store, meter, run_id)
+        self.researcher = researcher  # an AgentResearcher replaces the fixed query/search/summarise pipeline
         self.ledger = ledger
         self.store = store
         self.meter = meter
@@ -75,8 +78,17 @@ class TaskExecutor:
             self.store.log(self.run_id, "task_started", task=task.id, question=task.question)
             return await self.run_task(task, findings)
 
+    async def gather(self, task: Task, query: str) -> list[Evidence]:
+        """Search (and enrich web hits), recording every hit in the ledger for this task."""
+        hits = await self._search(query)
+        if self.fetch_pages:
+            hits = await self._enrich(hits, f"{query} {task.question}")
+        return [self.ledger.add(hit, task_id=task.id, query=query) for hit in hits]
+
     async def run_task(self, task: Task, findings: dict[str, Finding]) -> Finding:
         upstream = [findings[d] for d in task.depends_on if d in findings]
+        if self.researcher is not None:
+            return await self.researcher.research(task, upstream, self)
         queries = await self._queries(task, upstream)
 
         evidence_ids: list[str] = []

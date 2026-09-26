@@ -18,6 +18,7 @@ import socket
 import time
 import uuid
 from dataclasses import dataclass
+from typing import Any
 
 from . import faithfulness, planner, reporter, verifier
 from .budget import Budget, BudgetExceeded, BudgetMeter, MeteredLLM
@@ -91,6 +92,7 @@ class ResearchRuntime:
         fetch_pages: int = 2,
         webhook: Tool | None = None,
         delivery_retries: int = 3,
+        researcher: Any = None,
     ) -> None:
         self.llm = llm
         self.search = search
@@ -115,6 +117,7 @@ class ResearchRuntime:
         self.fetch_pages = fetch_pages
         self.webhook = webhook
         self.delivery_retries = delivery_retries
+        self.researcher = researcher  # e.g. agent.AgentResearcher: LangGraph ReAct loop per sub-question
 
     # -- public API --------------------------------------------------------
 
@@ -296,6 +299,7 @@ class ResearchRuntime:
             concurrency=self.concurrency,
             fetch=self.fetch,
             fetch_pages=self.fetch_pages,
+            researcher=self.researcher,
         )
         judge = MeteredLLM(self.judge_llm, meter) if self.judge_llm else llm
         s = _Session(run_id, state, lease, llm, judge, meter, ledger, executor)

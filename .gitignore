@@ -13,3 +13,4 @@ evals/data/*.jsonl
 src/deeptrace_agent/web_dist/
 web/node_modules/
 web/dist/
+.deeptrace_index/

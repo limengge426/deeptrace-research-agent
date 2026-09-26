@@ -1,0 +1,81 @@
+{
+  "embedder": "sentence-transformers/all-MiniLM-L6-v2",
+  "chunks": 2868,
+  "queries": {
+    "questions": 48,
+    "paraphrases": 40
+  },
+  "results": {
+    "bm25": {
+      "questions": {
+        "recall@5": 0.9201388888888888,
+        "recall@10": 0.9722222222222222,
+        "hit@5": 1.0,
+        "mrr@10": 0.96875
+      },
+      "paraphrases": {
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "hit@5": 1.0,
+        "mrr@10": 0.9270833333333333
+      }
+    },
+    "vector": {
+      "questions": {
+        "recall@5": 0.9201388888888888,
+        "recall@10": 0.9375,
+        "hit@5": 1.0,
+        "mrr@10": 1.0
+      },
+      "paraphrases": {
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "hit@5": 1.0,
+        "mrr@10": 0.9833333333333332
+      }
+    },
+    "hybrid (bm25+vector)": {
+      "questions": {
+        "recall@5": 0.9166666666666666,
+        "recall@10": 0.9444444444444443,
+        "hit@5": 1.0,
+        "mrr@10": 1.0
+      },
+      "paraphrases": {
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "hit@5": 1.0,
+        "mrr@10": 0.9625
+      }
+    },
+    "graph": {
+      "questions": {
+        "recall@5": 0.90625,
+        "recall@10": 0.9548611111111112,
+        "hit@5": 1.0,
+        "mrr@10": 0.907986111111111
+      },
+      "paraphrases": {
+        "recall@5": 0.6,
+        "recall@10": 0.75,
+        "hit@5": 0.6,
+        "mrr@10": 0.5232142857142856
+      }
+    },
+    "hybrid (bm25+vector+graph)": {
+      "questions": {
+        "recall@5": 0.9409722222222222,
+        "recall@10": 0.9791666666666666,
+        "hit@5": 1.0,
+        "mrr@10": 1.0
+      },
+      "paraphrases": {
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "hit@5": 1.0,
+        "mrr@10": 0.9416666666666667
+      }
+    }
+  },
+  "generated_at": "2026-09-26"
+}

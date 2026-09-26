@@ -14,7 +14,9 @@ COPY pyproject.toml README.md LICENSE ./
 COPY src ./src
 COPY --from=web /web-dist ./src/deeptrace_agent/web_dist
 COPY examples ./examples
-RUN pip install --no-cache-dir ".[server]" \
+# Extras: add ",rag" for dense/hybrid retrieval (pulls in PyTorch, several hundred MB).
+ARG EXTRAS=server,postgres,agent,graph
+RUN pip install --no-cache-dir ".[${EXTRAS}]" \
     && useradd --create-home --uid 1000 app \
     && mkdir /data && chown app /data
 

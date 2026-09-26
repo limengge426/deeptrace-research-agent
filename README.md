@@ -12,6 +12,9 @@ Plan → research in parallel → write a cited report → verify every claim �
 ![Docker](https://img.shields.io/badge/deploy-Docker-2496ED?logo=docker&logoColor=white)
 ![Core deps](https://img.shields.io/badge/core%20deps-httpx-22A06B)
 ![React](https://img.shields.io/badge/UI-React%20%2B%20TypeScript-61DAFB?logo=react&logoColor=black)
+![LangGraph](https://img.shields.io/badge/agent-LangGraph-1C3C3C?logo=langchain&logoColor=white)
+![Neo4j](https://img.shields.io/badge/graph-Neo4j-4581C3?logo=neo4j&logoColor=white)
+![Postgres](https://img.shields.io/badge/store-SQLite%20%7C%20Postgres-4169E1?logo=postgresql&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
 **[▶ Try the live demo](https://limengge426.github.io/deeptrace-research-agent/)**: recorded runs of the real agent, replayed in your browser
@@ -45,7 +48,10 @@ Around the model sits a harness built for failure. Runs are checkpointed to SQLi
 | 📈 **Observability** | Tokens, calls, latency and errors per LLM purpose; calls and cache hits per tool; time per stage. Available per run and aggregated (P50/P95, faithfulness), also in Prometheus format. Live progress over Server-Sent Events. |
 | 🖥️ **Web console** | React + TypeScript console: watch the task graph fill in live, review and edit the plan before research starts, and read reports where **every cited sentence is coloured by how well its source supports it**. Click any citation to see the source text and every sentence that relies on it. |
 | 🌐 **HTTP API & Docker** | FastAPI service; `docker compose up` starts the API plus two worker replicas, with the console served at `/`. |
-| 🔌 **Bring your own model & search** | Any OpenAI-compatible endpoint (OpenAI, DeepSeek, Qwen, vLLM, Ollama). Web search (Tavily) with **full-page fetching** of the top hits, or a local folder with the built-in BM25 (Chinese supported). |
+| 🤖 **Agentic research (LangGraph)** | Optionally, each sub-question is researched by a LangGraph ReAct agent that decides what to search, refines queries and stops when it has enough evidence. Its tool calls still go through the crash-safe tool runner, its sources still enter the ledger, and its tokens are metered by a LangChain callback into the same budget. |
+| 🔎 **Hybrid retrieval: BM25 + vectors + knowledge graph** | Sentence-transformer embeddings in a Faiss index, and a Neo4j knowledge graph (entities, relations, entity-linked expansion), fused with BM25 by Reciprocal Rank Fusion. [Evaluated on hand-labelled queries](#-retrieval). |
+| 🗄️ **Portable storage (SQLAlchemy + Alembic)** | SQLite by default or Postgres for workers on several hosts (leases use `FOR UPDATE SKIP LOCKED`). The schema is versioned with Alembic, and databases created by older versions are adopted automatically. |
+| 🔌 **Bring your own model & search** | Any OpenAI-compatible endpoint (OpenAI, DeepSeek, Qwen, vLLM, Ollama). Web search (Tavily) with **full-page fetching** of the top hits, or a local folder (Chinese supported). |
 
 ## 🏗️ How it works
 
@@ -143,9 +149,25 @@ deeptrace resolve <run_id> <key> --outcome done|retry         # reconcile one of
 | `--max-replans` | 2 | Extra research rounds for evidence gaps |
 | `--critic` | off | Ask the LLM to review the report for missing aspects |
 | `--lease-ttl` | 30 | Seconds before a dead worker's run is taken over |
+| `--retrieval` | `bm25` | Over a local corpus: `bm25`, `vector`, `hybrid`, `graph` or `hybrid+graph` |
+| `--researcher` | `pipeline` | `pipeline` (fixed queries → search → summarise) or `agent` (LangGraph ReAct agent) |
 | `--db` | `$DEEPTRACE_DB` or `deeptrace.db` | SQLite file for runs |
 
 </details>
+
+### Retrieval, knowledge graph and storage
+
+```bash
+pip install -e ".[rag,graph,agent]"                     # Faiss + sentence-transformers, Neo4j driver, LangGraph
+
+deeptrace run "..." --corpus docs/ --retrieval hybrid   # BM25 + embeddings (index cached in docs/.deeptrace_index)
+deeptrace graph build --corpus docs/                    # load the corpus into Neo4j (NEO4J_URI/USER/PASSWORD)
+deeptrace run "..." --corpus docs/ --retrieval hybrid+graph --researcher agent
+
+deeptrace db upgrade --db postgresql+psycopg://user:pass@host/deeptrace   # Alembic migrations (also run on startup)
+```
+
+`graph build` extracts entities without a model by default (article titles plus recurring proper names, related when they appear in the same passage). `--extractor llm` asks the model for typed relations instead.
 
 ### Web console
 
@@ -336,6 +358,36 @@ python evals/fetch_wikipedia.py                          # 40 pinned articles, ~
 python evals/faithfulness_eval.py runs grade detect report
 ```
 
+## 🔎 Retrieval
+
+[`evals/retrieval_eval.py`](evals/retrieval_eval.py) compares retrieval methods over the same 40 pinned Wikipedia articles (2,868 chunks), with hand-labelled gold articles ([labels](evals/data/retrieval_labels.json), [results](evals/results/retrieval_eval.md)). Embeddings: `all-MiniLM-L6-v2`.
+
+| Method | 48 research questions: Recall@5 | Recall@10 | 40 paraphrased queries: Hit@5 | MRR@10 |
+|---|--:|--:|--:|--:|
+| BM25 | 0.920 | 0.972 | 1.000 | 0.927 |
+| Dense vectors (Faiss) | 0.920 | 0.938 | 1.000 | **0.983** |
+| Hybrid (BM25 + vectors) | 0.917 | 0.944 | 1.000 | 0.963 |
+| Knowledge graph (Neo4j) | 0.906 | 0.955 | 0.600 | 0.523 |
+| **Hybrid (BM25 + vectors + graph)** | **0.941** | **0.979** | 1.000 | 0.942 |
+
+What this shows:
+- **The three-way hybrid covers multi-topic questions best.** Many research questions span two or three articles, and the graph links them through shared entities.
+- **Dense vectors rank paraphrases best.** For queries that avoid the article's own words, they put the right article first more often.
+- **The graph alone is weak on paraphrases.** With no entity named in the query, it has nothing to start from, so it is useful only as part of a hybrid.
+
+**Limitation:** with 40 articles on distinct topics, article-level retrieval is close to ceiling for every method, so the differences are small. A harder passage-level benchmark (LLM-generated questions about specific facts) is on the roadmap.
+
+## 🧰 Tech stack
+
+| Layer | Technologies |
+|---|---|
+| Agent / LLM | OpenAI-compatible API (httpx client), **LangGraph + LangChain** (agentic researcher, tool calling) |
+| Harness | Python, asyncio, state machine with checkpoints, leases + fencing tokens, write-ahead tool-call log, budgets |
+| Retrieval | Tavily + page fetching, BM25, **sentence-transformers + Faiss**, **Neo4j** knowledge graph, Reciprocal Rank Fusion |
+| Storage | **SQLAlchemy** (SQLite or Postgres), **Alembic** migrations |
+| API / UI | FastAPI, Server-Sent Events, React 18 + TypeScript + Vite |
+| Ops | Docker, docker-compose (API, workers, optional Postgres and Neo4j), Prometheus metrics, GitHub Actions (SQLite, Postgres and Neo4j jobs), GitHub Pages demo |
+
 ## 🗂️ Layout
 
 ```text
@@ -350,7 +402,12 @@ src/deeptrace_agent/
 ├── ledger.py        # deduplicating evidence ledger
 ├── budget.py        # budgets and the metered LLM wrapper
 ├── metrics.py       # per-run metrics, aggregation, Prometheus rendering
-├── store.py         # SQLite: checkpoints, leases + fencing, control flags, events, tool intents
+├── store.py         # SQLAlchemy store: checkpoints, leases + fencing, control flags, events, tool intents
+├── schema.py        # table definitions shared with the Alembic migrations (migrations/)
+├── agent.py         # LangGraph ReAct researcher for one sub-question
+├── retrieval.py     # sentence-transformer embeddings in Faiss; Reciprocal Rank Fusion
+├── graph.py         # Neo4j knowledge graph: extraction, loading, entity-linked retrieval
+├── factory.py       # builds retrieval and researcher from CLI/env configuration
 ├── worker.py        # claims unowned runs and drives them
 ├── server.py        # FastAPI app
 ├── search.py        # local BM25 corpus and Tavily web search
@@ -361,6 +418,7 @@ src/deeptrace_agent/
 └── cli.py
 evals/
 ├── crash_recovery.py   # fault-injection benchmark; results in evals/results/
+├── retrieval_eval.py   # BM25 vs. vectors vs. graph vs. hybrid on hand-labelled queries
 ├── faithfulness_eval.py  # real-model evaluation on pinned Wikipedia articles
 ├── routing_ablation.py   # per-section evidence routing vs. all-evidence sections
 ├── fetch_wikipedia.py  # builds the pinned evaluation corpus
@@ -376,7 +434,9 @@ Dockerfile · docker-compose.yml
 - [ ] Repair *partial* claims too: implemented behind `repair_partial=True` (off by default); the held-out evaluation ([`evals/partial_repair_eval.py`](evals/partial_repair_eval.py), 24 new questions) is written but has not been run yet
 - [ ] Novelty-based early stopping for research rounds
 - [ ] Contradiction detection across sources
-- [ ] Postgres store (`FOR UPDATE SKIP LOCKED`) for workers on several hosts
+- [x] Postgres store (`FOR UPDATE SKIP LOCKED`) for workers on several hosts
+- [ ] Passage-level retrieval benchmark (LLM-generated questions about specific facts)
+- [ ] A/B evaluation of the LangGraph agent researcher against the fixed pipeline with real models
 
 ## 🙏 Acknowledgements
 

@@ -46,6 +46,8 @@ DELAY = {"seconds": 0.0}
 async def chat(request: Request) -> dict:
     body = await request.json()
     system, user = body["messages"][0]["content"], body["messages"][1]["content"]
+    if "You are a research agent" in system:
+        return _agent_turn(body)
     purpose = next(p for marker, p in PURPOSES if marker in system)
     calls["count"] += 1
     await asyncio.sleep(DELAY["seconds"])
@@ -54,6 +56,25 @@ async def chat(request: Request) -> dict:
         "choices": [{"message": {"role": "assistant", "content": content}}],
         "usage": {"total_tokens": 100},
     }
+
+
+def _agent_turn(body: dict) -> dict:
+    """Tool-calling protocol for the LangGraph agent: search once, then answer citing what was found."""
+    import re
+
+    tool_results = [m["content"] for m in body["messages"] if m.get("role") == "tool"]
+    calls["count"] += 1
+    usage = {"prompt_tokens": 80, "completion_tokens": 20, "total_tokens": 100}
+    if not tool_results:
+        question = body["messages"][1]["content"].split("Sub-question:", 1)[-1].split("\n")[0].strip()
+        call = {"id": "call_1", "type": "function",
+                "function": {"name": "search_sources", "arguments": json.dumps({"query": question})}}
+        message = {"role": "assistant", "content": None, "tool_calls": [call]}
+        return {"choices": [{"index": 0, "message": message, "finish_reason": "tool_calls"}], "usage": usage}
+    ids = sorted(set(re.findall(r"\[(E\d+)\]", " ".join(tool_results))))
+    answer = {"summary": " ".join(f"A sourced claim [{i}]." for i in ids[:3]) or "No sources.", "used": ids[:3]}
+    message = {"role": "assistant", "content": json.dumps(answer)}
+    return {"choices": [{"index": 0, "message": message, "finish_reason": "stop"}], "usage": usage}
 
 
 @app.get("/calls")

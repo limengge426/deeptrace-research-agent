@@ -1,68 +1,34 @@
-"""SQLite persistence: run checkpoints, leases, an append-only event log and a tool-call cache.
+"""Persistence (SQLAlchemy): run checkpoints, leases, control flags, an append-only event log and a
+write-ahead tool-call log.
 
-Several worker processes may share one database. A run is only driven by the
-worker holding its lease, and every checkpoint carries the lease's fencing
-token: if a worker stalls long enough for its lease to expire and another
-worker takes the run over, the stale worker's next write is rejected instead of
-silently overwriting newer progress.
+Works on SQLite (a file path, the default) and on Postgres (``postgresql+psycopg://...``), so
+workers on several hosts can share one queue. The schema is versioned with Alembic and migrated
+on startup.
+
+A run is only driven by the worker holding its lease, and every checkpoint carries the lease's
+fencing token: if a worker stalls long enough for its lease to expire and another worker takes the
+run over, the stale worker's next write is rejected instead of silently overwriting newer progress.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
-import sqlite3
 import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from sqlalchemy import create_engine, delete, event, insert, inspect, select, update
+from sqlalchemy.engine import Connection, Engine
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.pool import StaticPool
+
 from .models import NOT_CLAIMABLE, RunState
+from .schema import controls, events, leases, metadata, runs, tool_calls
 
-_NOT_CLAIMABLE_SQL = ", ".join(f"'{s}'" for s in NOT_CLAIMABLE)
-
-_SCHEMA = """
-CREATE TABLE IF NOT EXISTS runs (
-    id TEXT PRIMARY KEY,
-    question TEXT NOT NULL,
-    status TEXT NOT NULL,
-    created_at REAL NOT NULL,
-    updated_at REAL NOT NULL,
-    state TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS events (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    run_id TEXT NOT NULL REFERENCES runs(id),
-    ts REAL NOT NULL,
-    kind TEXT NOT NULL,
-    payload TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS events_by_run ON events(run_id, id);
-CREATE TABLE IF NOT EXISTS leases (
-    run_id TEXT PRIMARY KEY REFERENCES runs(id),
-    owner TEXT NOT NULL,
-    token INTEGER NOT NULL,
-    expires_at REAL NOT NULL
-);
-CREATE TABLE IF NOT EXISTS controls (
-    run_id TEXT PRIMARY KEY REFERENCES runs(id),
-    action TEXT NOT NULL,
-    requested_at REAL NOT NULL
-);
-CREATE TABLE IF NOT EXISTS tool_calls (
-    key TEXT PRIMARY KEY,
-    run_id TEXT NOT NULL,
-    tool TEXT NOT NULL,
-    args TEXT NOT NULL,
-    status TEXT NOT NULL,          -- pending (intent recorded, outcome unknown) | done
-    result TEXT,
-    attempts INTEGER NOT NULL,
-    started_at REAL NOT NULL,
-    finished_at REAL
-);
-CREATE INDEX IF NOT EXISTS tool_calls_by_run ON tool_calls(run_id, status);
-"""
+MIGRATIONS = Path(__file__).parent / "migrations"
 
 
 @dataclass
@@ -93,43 +59,97 @@ class Event:
     payload: dict[str, Any]
 
 
+def database_url(target: str | Path) -> str:
+    """A SQLAlchemy URL for ``target``: URLs pass through, anything else is a SQLite file path."""
+    target = str(target)
+    if "://" in target:
+        return target
+    if target == ":memory:":
+        return "sqlite://"
+    Path(target).parent.mkdir(parents=True, exist_ok=True)
+    return f"sqlite:///{target}"
+
+
+def make_engine(url: str) -> Engine:
+    if not url.startswith("sqlite"):
+        return create_engine(url, pool_pre_ping=True)
+    kwargs: dict[str, Any] = {"connect_args": {"timeout": 30, "check_same_thread": False}}
+    if url == "sqlite://":
+        kwargs["poolclass"] = StaticPool  # one shared in-memory database
+    engine = create_engine(url, **kwargs)
+
+    @event.listens_for(engine, "connect")
+    def _on_connect(dbapi_conn, _record) -> None:
+        dbapi_conn.isolation_level = None  # let SQLAlchemy's "begin" event control transactions
+        dbapi_conn.execute("PRAGMA journal_mode=WAL")
+
+    @event.listens_for(engine, "begin")
+    def _on_begin(conn: Connection) -> None:
+        # Take SQLite's write lock up front, so read-then-write transactions (lease acquisition,
+        # taking a control flag) are serialised across processes instead of failing on upgrade.
+        conn.exec_driver_sql("BEGIN IMMEDIATE")
+
+    return engine
+
+
 class RunStore:
-    def __init__(self, path: str | Path = "deeptrace.db") -> None:
-        self.path = str(path)
-        if self.path != ":memory:":
-            Path(self.path).parent.mkdir(parents=True, exist_ok=True)
-        # Autocommit mode: single statements commit on their own, and multi-step
-        # operations open an explicit BEGIN IMMEDIATE transaction.
-        self._conn = sqlite3.connect(self.path, timeout=30, isolation_level=None, check_same_thread=False)
-        self._conn.execute("PRAGMA journal_mode=WAL")
-        self._conn.executescript(_SCHEMA)
+    def __init__(self, target: str | Path = "deeptrace.db", *, migrate: bool = True) -> None:
+        self.url = database_url(target)
+        self.engine = make_engine(self.url)
+        self.dialect = self.engine.dialect.name
+        if migrate:
+            self.migrate()
 
     def close(self) -> None:
-        self._conn.close()
+        self.engine.dispose()
+
+    def migrate(self) -> None:
+        """Bring the schema to the latest Alembic revision.
+
+        Databases created before migrations existed already have the initial tables but no
+        ``alembic_version``: they are stamped as revision 0001 and upgraded from there.
+        """
+        from alembic import command
+        from alembic.config import Config
+
+        with self.engine.begin() as conn:
+            config = Config()
+            config.set_main_option("script_location", str(MIGRATIONS))
+            config.attributes["connection"] = conn
+            tables = set(inspect(conn).get_table_names())
+            if "alembic_version" not in tables and "runs" in tables:
+                command.stamp(config, "0001")
+            command.upgrade(config, "head")
+
+    def _insert(self, table):
+        """Dialect-specific INSERT supporting ON CONFLICT (SQLite and Postgres)."""
+        if self.dialect == "postgresql":
+            from sqlalchemy.dialects.postgresql import insert as dialect_insert
+        else:
+            from sqlalchemy.dialects.sqlite import insert as dialect_insert
+        return dialect_insert(table)
 
     # -- runs -------------------------------------------------------------
 
     def create_run(self, state: RunState) -> str:
         run_id = uuid.uuid4().hex[:10]
         now = time.time()
-        self._conn.execute(
-            "INSERT INTO runs VALUES (?, ?, ?, ?, ?, ?)",
-            (run_id, state.question, state.stage, now, now, json.dumps(state.to_dict())),
-        )
+        with self.engine.begin() as c:
+            c.execute(insert(runs).values(id=run_id, question=state.question, status=state.stage,
+                                          created_at=now, updated_at=now, state=json.dumps(state.to_dict())))
         return run_id
 
     def checkpoint(self, run_id: str, state: RunState, *, status: str, lease: Lease | None = None) -> None:
-        params = (status, time.time(), json.dumps(state.to_dict()), run_id)
-        if lease is None:
-            self._conn.execute("UPDATE runs SET status = ?, updated_at = ?, state = ? WHERE id = ?", params)
-            return
-        cur = self._conn.execute(
-            "UPDATE runs SET status = ?, updated_at = ?, state = ? WHERE id = ? AND EXISTS "
-            "(SELECT 1 FROM leases WHERE run_id = ? AND owner = ? AND token = ?)",
-            (*params, run_id, lease.owner, lease.token),
-        )
-        if cur.rowcount == 0:
-            raise LeaseLost(f"lease on run {run_id} (token {lease.token}) was taken over")
+        stmt = update(runs).where(runs.c.id == run_id).values(
+            status=status, updated_at=time.time(), state=json.dumps(state.to_dict()))
+        if lease is not None:
+            # Fencing: the write only lands if this worker still holds the lease with this token.
+            stmt = stmt.where(select(leases.c.run_id).where(
+                leases.c.run_id == run_id, leases.c.owner == lease.owner, leases.c.token == lease.token,
+            ).exists())
+        with self.engine.begin() as c:
+            if c.execute(stmt).rowcount == 0 and lease is not None:
+                raise LeaseLost(f"lease on run {run_id} (token {lease.token}) was taken over")
 
     def requeue(self, run_id: str) -> None:
         """Make a halted or paused run claimable again by clearing its error and hold."""
@@ -138,135 +158,136 @@ class RunStore:
         state.hold = None
         self.checkpoint(run_id, state, status=state.status)
 
-    # -- human control ------------------------------------------------------
-
-    def request_control(self, run_id: str, action: str) -> None:
-        """Ask whoever drives the run to "cancel" or "pause" it at the next step boundary."""
-        self._conn.execute(
-            "INSERT OR REPLACE INTO controls VALUES (?, ?, ?)", (run_id, action, time.time())
-        )
-
-    def take_control(self, run_id: str) -> str | None:
-        """Atomically read and clear a pending control request."""
-        self._conn.execute("BEGIN IMMEDIATE")
-        try:
-            row = self._conn.execute("SELECT action FROM controls WHERE run_id = ?", (run_id,)).fetchone()
-            if row:
-                self._conn.execute("DELETE FROM controls WHERE run_id = ?", (run_id,))
-            self._conn.execute("COMMIT")
-        except BaseException:
-            self._conn.execute("ROLLBACK")
-            raise
-        return row[0] if row else None
-
     def load(self, run_id: str) -> RunState:
-        row = self._conn.execute("SELECT state FROM runs WHERE id = ?", (run_id,)).fetchone()
+        with self.engine.connect() as c:
+            row = c.execute(select(runs.c.state).where(runs.c.id == run_id)).first()
         if row is None:
             raise KeyError(f"no run with id {run_id!r}")
         return RunState.from_dict(json.loads(row[0]))
 
     def states(self, limit: int = 1000) -> list[RunState]:
         """Most recent run states, newest first (for metrics aggregation)."""
-        rows = self._conn.execute("SELECT state FROM runs ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
+        with self.engine.connect() as c:
+            rows = c.execute(select(runs.c.state).order_by(runs.c.created_at.desc()).limit(limit)).all()
         return [RunState.from_dict(json.loads(row[0])) for row in rows]
 
     def runs(self, limit: int = 20) -> list[RunRecord]:
-        rows = self._conn.execute(
-            "SELECT id, question, status, created_at, updated_at FROM runs ORDER BY created_at DESC LIMIT ?",
-            (limit,),
-        ).fetchall()
+        with self.engine.connect() as c:
+            rows = c.execute(select(runs.c.id, runs.c.question, runs.c.status, runs.c.created_at,
+                                    runs.c.updated_at).order_by(runs.c.created_at.desc()).limit(limit)).all()
         return [RunRecord(*row) for row in rows]
 
     def status(self, run_id: str) -> str:
-        row = self._conn.execute("SELECT status FROM runs WHERE id = ?", (run_id,)).fetchone()
+        with self.engine.connect() as c:
+            row = c.execute(select(runs.c.status).where(runs.c.id == run_id)).first()
         if row is None:
             raise KeyError(f"no run with id {run_id!r}")
         return row[0]
+
+    # -- human control ------------------------------------------------------
+
+    def request_control(self, run_id: str, action: str) -> None:
+        """Ask whoever drives the run to "cancel" or "pause" it at the next step boundary."""
+        stmt = self._insert(controls).values(run_id=run_id, action=action, requested_at=time.time())
+        stmt = stmt.on_conflict_do_update(index_elements=["run_id"],
+                                          set_={"action": stmt.excluded.action,
+                                                "requested_at": stmt.excluded.requested_at})
+        with self.engine.begin() as c:
+            c.execute(stmt)
+
+    def take_control(self, run_id: str) -> str | None:
+        """Atomically read and clear a pending control request."""
+        with self.engine.begin() as c:
+            row = c.execute(select(controls.c.action).where(controls.c.run_id == run_id).with_for_update()).first()
+            if row:
+                c.execute(delete(controls).where(controls.c.run_id == run_id))
+        return row[0] if row else None
 
     # -- leases -----------------------------------------------------------
 
     def acquire(self, run_id: str, owner: str, ttl: float) -> Lease | None:
         """Take the run's lease if it is free, expired, or already ours.
 
-        Taking over from another owner bumps the fencing token, which
-        invalidates any checkpoint the previous owner might still try to write.
+        Taking over from another owner bumps the fencing token, which invalidates any checkpoint
+        the previous owner might still try to write. On Postgres the lease row is locked with
+        ``FOR UPDATE SKIP LOCKED``: a worker that finds another worker mid-acquisition backs off
+        instead of waiting.
         """
         now = time.time()
-        self._conn.execute("BEGIN IMMEDIATE")
         try:
-            row = self._conn.execute(
-                "SELECT owner, token, expires_at FROM leases WHERE run_id = ?", (run_id,)
-            ).fetchone()
-            if row is None:
-                token = 1
-                self._conn.execute("INSERT INTO leases VALUES (?, ?, ?, ?)", (run_id, owner, token, now + ttl))
-            elif row[0] == owner and row[2] > now:
-                token = row[1]
-                self._conn.execute("UPDATE leases SET expires_at = ? WHERE run_id = ?", (now + ttl, run_id))
-            elif row[2] <= now:
-                token = row[1] + 1
-                self._conn.execute(
-                    "UPDATE leases SET owner = ?, token = ?, expires_at = ? WHERE run_id = ?",
-                    (owner, token, now + ttl, run_id),
-                )
-            else:
-                self._conn.execute("ROLLBACK")
-                return None
-            self._conn.execute("COMMIT")
-        except BaseException:
-            self._conn.execute("ROLLBACK")
-            raise
+            with self.engine.begin() as c:
+                row = c.execute(
+                    select(leases.c.owner, leases.c.token, leases.c.expires_at)
+                    .where(leases.c.run_id == run_id)
+                    .with_for_update(skip_locked=True)
+                ).first()
+                if row is None:
+                    if self.dialect == "postgresql" and c.execute(
+                        select(leases.c.run_id).where(leases.c.run_id == run_id)
+                    ).first():
+                        return None  # the row exists but another worker has it locked right now
+                    token = 1
+                    c.execute(insert(leases).values(run_id=run_id, owner=owner, token=token, expires_at=now + ttl))
+                elif row.owner == owner and row.expires_at > now:
+                    token = row.token
+                    c.execute(update(leases).where(leases.c.run_id == run_id).values(expires_at=now + ttl))
+                elif row.expires_at <= now:
+                    token = row.token + 1
+                    c.execute(update(leases).where(leases.c.run_id == run_id)
+                              .values(owner=owner, token=token, expires_at=now + ttl))
+                else:
+                    return None
+        except IntegrityError:
+            return None  # another worker inserted the lease first
         return Lease(run_id, owner, token)
 
     def lease_holder(self, run_id: str) -> tuple[str, float] | None:
         """(owner, seconds until expiry) of a live lease, or None if the run is free."""
-        row = self._conn.execute("SELECT owner, expires_at FROM leases WHERE run_id = ?", (run_id,)).fetchone()
-        if row is None or row[1] <= time.time():
+        with self.engine.connect() as c:
+            row = c.execute(select(leases.c.owner, leases.c.expires_at).where(leases.c.run_id == run_id)).first()
+        if row is None or row.expires_at <= time.time():
             return None
-        return row[0], row[1] - time.time()
+        return row.owner, row.expires_at - time.time()
 
     def renew(self, lease: Lease, ttl: float) -> bool:
-        cur = self._conn.execute(
-            "UPDATE leases SET expires_at = ? WHERE run_id = ? AND owner = ? AND token = ?",
-            (time.time() + ttl, lease.run_id, lease.owner, lease.token),
-        )
-        return cur.rowcount == 1
+        with self.engine.begin() as c:
+            result = c.execute(update(leases).where(
+                leases.c.run_id == lease.run_id, leases.c.owner == lease.owner, leases.c.token == lease.token,
+            ).values(expires_at=time.time() + ttl))
+        return result.rowcount == 1
 
     def release(self, lease: Lease) -> None:
-        self._conn.execute(
-            "UPDATE leases SET expires_at = 0 WHERE run_id = ? AND owner = ? AND token = ?",
-            (lease.run_id, lease.owner, lease.token),
-        )
+        with self.engine.begin() as c:
+            c.execute(update(leases).where(
+                leases.c.run_id == lease.run_id, leases.c.owner == lease.owner, leases.c.token == lease.token,
+            ).values(expires_at=0))
 
     def claimable(self, limit: int = 10) -> list[str]:
         """Unfinished, unpaused runs that nobody currently holds a live lease on."""
-        rows = self._conn.execute(
-            "SELECT r.id FROM runs r LEFT JOIN leases l ON l.run_id = r.id "
-            f"WHERE r.status NOT IN ({_NOT_CLAIMABLE_SQL}) AND (l.run_id IS NULL OR l.expires_at <= ?) "
-            "ORDER BY r.created_at LIMIT ?",
-            (time.time(), limit),
-        ).fetchall()
-        return [row[0] for row in rows]
+        stmt = (select(runs.c.id).select_from(runs.outerjoin(leases, leases.c.run_id == runs.c.id))
+                .where(runs.c.status.not_in(NOT_CLAIMABLE),
+                       (leases.c.run_id.is_(None)) | (leases.c.expires_at <= time.time()))
+                .order_by(runs.c.created_at).limit(limit))
+        with self.engine.connect() as c:
+            return [row[0] for row in c.execute(stmt)]
 
     def pending(self) -> list[str]:
         """Runs that are neither finished nor paused, whether or not someone holds them."""
-        rows = self._conn.execute(
-            f"SELECT id FROM runs WHERE status NOT IN ({_NOT_CLAIMABLE_SQL}) ORDER BY created_at"
-        ).fetchall()
-        return [row[0] for row in rows]
+        with self.engine.connect() as c:
+            rows = c.execute(select(runs.c.id).where(runs.c.status.not_in(NOT_CLAIMABLE)).order_by(runs.c.created_at))
+            return [row[0] for row in rows]
 
     # -- events -----------------------------------------------------------
 
     def log(self, run_id: str, kind: str, **payload: Any) -> None:
-        self._conn.execute(
-            "INSERT INTO events (run_id, ts, kind, payload) VALUES (?, ?, ?, ?)",
-            (run_id, time.time(), kind, json.dumps(payload, ensure_ascii=False)),
-        )
+        with self.engine.begin() as c:
+            c.execute(insert(events).values(run_id=run_id, ts=time.time(), kind=kind,
+                                            payload=json.dumps(payload, ensure_ascii=False)))
 
     def events(self, run_id: str, *, after: int = 0) -> list[Event]:
-        rows = self._conn.execute(
-            "SELECT id, ts, kind, payload FROM events WHERE run_id = ? AND id > ? ORDER BY id", (run_id, after)
-        ).fetchall()
+        with self.engine.connect() as c:
+            rows = c.execute(select(events.c.id, events.c.ts, events.c.kind, events.c.payload)
+                             .where(events.c.run_id == run_id, events.c.id > after).order_by(events.c.id)).all()
         return [Event(eid, ts, kind, json.loads(payload)) for eid, ts, kind, payload in rows]
 
     # -- tool calls: write-ahead intent log + idempotency cache ------------
@@ -277,35 +298,38 @@ class RunStore:
         return hashlib.sha256(blob.encode()).hexdigest()
 
     def tool_record(self, key: str) -> dict[str, Any] | None:
-        row = self._conn.execute(
-            "SELECT tool, status, result, attempts FROM tool_calls WHERE key = ?", (key,)
-        ).fetchone()
+        with self.engine.connect() as c:
+            row = c.execute(select(tool_calls.c.tool, tool_calls.c.status, tool_calls.c.result,
+                                   tool_calls.c.attempts).where(tool_calls.c.key == key)).first()
         if row is None:
             return None
-        return {"tool": row[0], "status": row[1], "result": json.loads(row[2]) if row[2] else None,
-                "attempts": row[3]}
+        return {"tool": row.tool, "status": row.status, "result": json.loads(row.result) if row.result else None,
+                "attempts": row.attempts}
 
     def begin_tool_call(self, key: str, run_id: str, tool: str, args: dict[str, Any]) -> None:
-        self._conn.execute(
-            "INSERT INTO tool_calls (key, run_id, tool, args, status, attempts, started_at) "
-            "VALUES (?, ?, ?, ?, 'pending', 1, ?) "
-            "ON CONFLICT(key) DO UPDATE SET attempts = attempts + 1, started_at = excluded.started_at",
-            (key, run_id, tool, json.dumps(args), time.time()),
-        )
+        stmt = self._insert(tool_calls).values(key=key, run_id=run_id, tool=tool, args=json.dumps(args),
+                                               status="pending", attempts=1, started_at=time.time())
+        stmt = stmt.on_conflict_do_update(index_elements=["key"],
+                                          set_={"attempts": tool_calls.c.attempts + 1,
+                                                "started_at": stmt.excluded.started_at})
+        with self.engine.begin() as c:
+            c.execute(stmt)
 
     def finish_tool_call(self, key: str, result: Any) -> None:
-        self._conn.execute(
-            "UPDATE tool_calls SET status = 'done', result = ?, finished_at = ? WHERE key = ?",
-            (json.dumps(result), time.time(), key),
-        )
+        with self.engine.begin() as c:
+            c.execute(update(tool_calls).where(tool_calls.c.key == key)
+                      .values(status="done", result=json.dumps(result), finished_at=time.time()))
 
     def discard_tool_call(self, key: str) -> None:
-        self._conn.execute("DELETE FROM tool_calls WHERE key = ? AND status = 'pending'", (key,))
+        with self.engine.begin() as c:
+            c.execute(delete(tool_calls).where(tool_calls.c.key == key, tool_calls.c.status == "pending"))
 
     def pending_tool_calls(self, run_id: str) -> list[dict[str, Any]]:
-        rows = self._conn.execute(
-            "SELECT key, tool, args, attempts, started_at FROM tool_calls WHERE run_id = ? AND status = 'pending'",
-            (run_id,),
-        ).fetchall()
-        return [{"key": k, "tool": t, "args": json.loads(a), "attempts": n, "started_at": ts}
-                for k, t, a, n, ts in rows]
+        with self.engine.connect() as c:
+            rows = c.execute(select(tool_calls.c.key, tool_calls.c.tool, tool_calls.c.args, tool_calls.c.attempts,
+                                    tool_calls.c.started_at)
+                             .where(tool_calls.c.run_id == run_id, tool_calls.c.status == "pending")).all()
+        return [{"key": k, "tool": t, "args": json.loads(a), "attempts": n, "started_at": ts} for k, t, a, n, ts in rows]
+
+
+__all__ = ["Event", "Lease", "LeaseLost", "RunRecord", "RunStore", "database_url", "metadata"]

@@ -18,10 +18,10 @@ from .store import RunStore
 
 
 def _search_from_args(args: argparse.Namespace) -> SearchProvider:
+    from .factory import make_search
+
     corpus = args.corpus or (None if args.web else getenv("CORPUS"))
-    if corpus:
-        return LocalCorpusSearch(corpus)
-    return TavilySearch()
+    return make_search(corpus, args.retrieval)
 
 
 def _budget_from_args(args: argparse.Namespace) -> Budget:
@@ -118,6 +118,10 @@ def build_parser() -> argparse.ArgumentParser:
         p.add_argument("--critic", action="store_true", help="add an LLM review for coverage gaps")
         p.add_argument("--lease-ttl", type=float, default=30.0, help="seconds before a dead worker's run is taken over")
         p.add_argument("--fetch-pages", type=int, default=2, help="web hits per query to fetch in full (web search)")
+        p.add_argument("--retrieval", choices=("bm25", "vector", "hybrid", "graph", "hybrid+graph"),
+                       default=getenv("RETRIEVAL", "bm25"), help="retrieval over a local corpus")
+        p.add_argument("--researcher", choices=("pipeline", "agent"), default=getenv("RESEARCHER", "pipeline"),
+                       help="fixed query/search/summarise pipeline, or a LangGraph agent per sub-question")
 
     run = sub.add_parser("run", help="start a new research run", parents=[common])
     run.add_argument("question")
@@ -133,6 +137,16 @@ def build_parser() -> argparse.ArgumentParser:
     show.add_argument("run_id")
 
     sub.add_parser("list", help="list recent runs", parents=[common])
+
+    db = sub.add_parser("db", help="database schema (Alembic migrations)", parents=[common])
+    db.add_argument("action", choices=("upgrade", "current"))
+
+    graph = sub.add_parser("graph", help="knowledge graph in Neo4j (NEO4J_URI / NEO4J_USER / NEO4J_PASSWORD)",
+                           parents=[common])
+    graph.add_argument("action", choices=("build",))
+    graph.add_argument("--corpus", required=True, help="folder of .md/.txt files")
+    graph.add_argument("--extractor", choices=("cooccurrence", "llm"), default="cooccurrence",
+                       help="cooccurrence needs no model; llm extracts typed relations (one call per 6 chunks)")
 
     for name, text in (("cancel", "cancel a run"), ("pause", "pause a run at its next step boundary")):
         p = sub.add_parser(name, help=text, parents=[common])
@@ -162,6 +176,8 @@ def build_parser() -> argparse.ArgumentParser:
 def _runtime(args: argparse.Namespace, store: RunStore) -> ResearchRuntime:
     from .tools import FetchPageTool
 
+    from .factory import make_researcher
+
     search = _search_from_args(args)
     return ResearchRuntime(
         OpenAICompatLLM.from_env(),
@@ -174,6 +190,7 @@ def _runtime(args: argparse.Namespace, store: RunStore) -> ResearchRuntime:
         concurrency=args.concurrency,
         critic=args.critic,
         lease_ttl=args.lease_ttl,
+        researcher=make_researcher(args.researcher),
     )
 
 
@@ -224,6 +241,36 @@ async def _work(args: argparse.Namespace, store: RunStore) -> int:
     return 0
 
 
+def _db(args: argparse.Namespace, store: RunStore) -> int:
+    from sqlalchemy import text
+
+    if args.action == "upgrade":
+        store.migrate()
+    with store.engine.connect() as c:
+        version = c.execute(text("SELECT version_num FROM alembic_version")).scalar()
+    print(f"{store.engine.url.render_as_string(hide_password=True)}: revision {version}")
+    return 0
+
+
+def _graph(args: argparse.Namespace) -> int:
+    from .graph import CooccurrenceExtractor, LLMExtractor, build_graph, env_credentials
+
+    uri, user, password = env_credentials()
+    if args.extractor == "llm":
+        extractor = LLMExtractor(OpenAICompatLLM.from_env())
+    else:
+        titles = []
+        for path in Path(args.corpus).rglob("*.md"):
+            first = path.read_text(encoding="utf-8", errors="ignore").lstrip().splitlines()[:1]
+            if first and first[0].startswith("# "):
+                titles.append(first[0][2:].strip())
+        extractor = CooccurrenceExtractor(titles)
+    counts = build_graph(args.corpus, extractor, uri=uri, user=user, password=password)
+    print(f"graph built in {uri}: {counts['chunks']} chunks, {counts['entities']} entities, "
+          f"{counts['relations']} relations")
+    return 0
+
+
 def _control(args: argparse.Namespace, store: RunStore) -> int:
     import json
 
@@ -271,6 +318,10 @@ def main(argv: list[str] | None = None) -> int:
             return _list(store)
         if args.command in ("cancel", "pause", "approve", "resolve"):
             return _control(args, store)
+        if args.command == "db":
+            return _db(args, store)
+        if args.command == "graph":
+            return _graph(args)
         if args.command == "serve":
             return _serve(args, store)
         if args.command == "worker":

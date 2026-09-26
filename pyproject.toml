@@ -10,11 +10,20 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 authors = [{ name = "Limeng Ge" }]
-dependencies = ["httpx>=0.27"]
+dependencies = ["httpx>=0.27", "sqlalchemy>=2.0", "alembic>=1.13"]
 
 [project.optional-dependencies]
 server = ["fastapi>=0.110", "uvicorn>=0.29"]
-dev = ["pytest>=8", "fastapi>=0.110", "uvicorn>=0.29"]
+postgres = ["psycopg[binary]>=3.1"]
+agent = ["langgraph>=0.2", "langchain-core>=0.3", "langchain-openai>=0.2"]
+rag = ["faiss-cpu>=1.8", "numpy>=1.26", "sentence-transformers>=3.0"]
+graph = ["neo4j>=5.20"]
+# Everything the test suite needs; sentence-transformers (and PyTorch) is left out on purpose:
+# tests use a deterministic stand-in embedder, and the real model is exercised by evals only.
+dev = [
+    "pytest>=8", "fastapi>=0.110", "uvicorn>=0.29", "psycopg[binary]>=3.1",
+    "langgraph>=0.2", "langchain-core>=0.3", "faiss-cpu>=1.8", "numpy>=1.26", "neo4j>=5.20",
+]
 
 [project.scripts]
 deeptrace = "deeptrace_agent.cli:main"
