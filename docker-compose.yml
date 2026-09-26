@@ -12,21 +12,21 @@ x-common: &common
   build: .
   env_file: .env
   environment:
-    RESEARCHLOOP_DB: /data/researchloop.db
-    RESEARCHLOOP_CORPUS: ${RESEARCHLOOP_CORPUS:-/app/examples/corpus}
+    DEEPTRACE_DB: /data/deeptrace.db
+    DEEPTRACE_CORPUS: ${DEEPTRACE_CORPUS:-/app/examples/corpus}
   volumes:
     - data:/data
 
 services:
   api:
     <<: *common
-    command: ["researchloop", "serve", "--host", "0.0.0.0", "--port", "8000", "--no-worker"]
+    command: ["deeptrace", "serve", "--host", "0.0.0.0", "--port", "8000", "--no-worker"]
     ports:
       - "8000:8000"
 
   worker:
     <<: *common
-    command: ["researchloop", "worker", "--max-active", "2"]
+    command: ["deeptrace", "worker", "--max-active", "2"]
     healthcheck:
       disable: true
     deploy:

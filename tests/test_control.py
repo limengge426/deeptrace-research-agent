@@ -5,10 +5,10 @@ import json
 
 import pytest
 
-from researchloop import ResearchRuntime, RunStore, cli
-from researchloop.llm import OpenAICompatLLM
-from researchloop.runtime import InvalidAction
-from researchloop.worker import Worker
+from deeptrace_agent import ResearchRuntime, RunStore, cli
+from deeptrace_agent.llm import OpenAICompatLLM
+from deeptrace_agent.runtime import InvalidAction
+from deeptrace_agent.worker import Worker
 
 from .fakes import FakeSearch, ScriptedLLM
 
@@ -118,7 +118,7 @@ def test_api_plan_approval_and_cancel_flow(tmp_path):
     fastapi = pytest.importorskip("fastapi")  # noqa: F841
     from fastapi.testclient import TestClient
 
-    from researchloop.server import create_app
+    from deeptrace_agent.server import create_app
 
     runtime = ResearchRuntime(ScriptedLLM(), FakeSearch(), RunStore(tmp_path / "api.db"), owner="api")
     with TestClient(create_app(runtime, poll_interval=0.02)) as client:

@@ -3,12 +3,12 @@
 import asyncio
 import re
 
-from researchloop import ResearchRuntime, RunStore
-from researchloop.ledger import EvidenceLedger
-from researchloop.models import Finding, Plan, Report, Section, Task
-from researchloop.reporter import ContextBudget, make_outline, write_sectioned_report
-from researchloop.search import SearchHit
-from researchloop.verifier import check_report
+from deeptrace_agent import ResearchRuntime, RunStore
+from deeptrace_agent.ledger import EvidenceLedger
+from deeptrace_agent.models import Finding, Plan, Report, Section, Task
+from deeptrace_agent.reporter import ContextBudget, make_outline, write_sectioned_report
+from deeptrace_agent.search import SearchHit
+from deeptrace_agent.verifier import check_report
 
 from . import fakes
 from .fakes import FakeSearch, ScriptedLLM

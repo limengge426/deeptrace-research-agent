@@ -21,13 +21,13 @@ import httpx
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from researchloop.tools import html_to_text  # noqa: E402
+from deeptrace_agent.tools import html_to_text  # noqa: E402
 
 DATA = ROOT / "evals" / "data"
 MANIFEST = DATA / "wikipedia_manifest.json"
 OUT = DATA / "wikipedia"
 API = "https://en.wikipedia.org/w/api.php"
-HEADERS = {"User-Agent": "researchloop-eval/0.3 (https://github.com/limengge426/researchloop; research evaluation)"}
+HEADERS = {"User-Agent": "deeptrace-eval/0.3 (https://github.com/limengge426/deeptrace-research-agent; research evaluation)"}
 
 TOPICS = {
     "energy": [

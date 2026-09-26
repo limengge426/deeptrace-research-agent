@@ -1,12 +1,12 @@
 <div align="center">
 
-# 🔁 researchloop
+# 🔍 DeepTrace
 
-**An evidence-first, fault-tolerant research agent harness.**
+**A fault-tolerant deep research agent that traces every claim to its source.**
 <br>
 Plan → research in parallel → write a cited report → verify every claim → repair or dig deeper → deliver.
 
-[![CI](https://github.com/limengge426/researchloop/actions/workflows/ci.yml/badge.svg)](https://github.com/limengge426/researchloop/actions/workflows/ci.yml)
+[![CI](https://github.com/limengge426/deeptrace-research-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/limengge426/deeptrace-research-agent/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.10+-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white)
 ![Docker](https://img.shields.io/badge/deploy-Docker-2496ED?logo=docker&logoColor=white)
@@ -17,7 +17,7 @@ Plan → research in parallel → write a cited report → verify every claim �
 
 ---
 
-Most "deep research" demos generate a report and hope it is right. **researchloop treats the report as a set of claims that each have to pass checks.** Every source gets a stable evidence id. Every sentence must cite those ids. A judge model then checks each cited sentence against the full text of its sources, and the verifier decides whether the run is done, needs specific sections rewritten, or needs more research.
+Most "deep research" demos generate a report and hope it is right. **DeepTrace treats the report as a set of claims that each have to pass checks.** Every source gets a stable evidence id. Every sentence must cite those ids. A judge model then checks each cited sentence against the full text of its sources, and the verifier decides whether the run is done, needs specific sections rewritten, or needs more research.
 
 Around the model sits a harness built for failure. Runs are checkpointed to SQLite and tool calls go through a write-ahead intent log, so crashes never lose work or repeat side effects. Workers coordinate through **leases with fencing tokens**. Humans can **pause, cancel, approve the plan, or reconcile an interrupted side effect**. Every run reports **metrics per stage, per LLM purpose and per tool**.
 
@@ -73,30 +73,30 @@ The reporter then plans an outline over the findings and writes each section fro
 ## 🚀 Quick start
 
 ```bash
-git clone https://github.com/limengge426/researchloop.git
-cd researchloop
+git clone https://github.com/limengge426/deeptrace_agent.git
+cd deeptrace-research-agent
 pip install -e ".[dev]"
 ```
 
 Point it at any OpenAI-compatible model (or put these lines in a `.env` file):
 
 ```bash
-export RESEARCHLOOP_API_KEY=sk-...
-export RESEARCHLOOP_MODEL=gpt-4o-mini                      # or deepseek-chat, qwen-plus, ...
-export RESEARCHLOOP_BASE_URL=https://api.openai.com/v1     # or your provider's endpoint
+export DEEPTRACE_API_KEY=sk-...
+export DEEPTRACE_MODEL=gpt-4o-mini                      # or deepseek-chat, qwen-plus, ...
+export DEEPTRACE_BASE_URL=https://api.openai.com/v1     # or your provider's endpoint
 ```
 
 **Offline**: research a local folder of `.md` / `.txt` files:
 
 ```bash
-researchloop run "Are heat pumps worth it in cold climates?" --corpus examples/corpus
+deeptrace run "Are heat pumps worth it in cold climates?" --corpus examples/corpus
 ```
 
 **Web**: search with [Tavily](https://tavily.com); the top hits of each query are fetched in full:
 
 ```bash
 export TAVILY_API_KEY=tvly-...
-researchloop run "What changed in EU AI regulation in 2025?" --critic
+deeptrace run "What changed in EU AI regulation in 2025?" --critic
 ```
 
 The report is written to `reports/<run_id>.md`, with a **Sources** section listing every cited evidence id and a **Limitations** section for anything that could not be verified.
@@ -104,19 +104,19 @@ The report is written to `reports/<run_id>.md`, with a **Sources** section listi
 ### Inspect and control runs
 
 ```bash
-researchloop show <run_id>                   # event timeline + metrics per LLM purpose, stage and tool
-researchloop list
+deeptrace show <run_id>                   # event timeline + metrics per LLM purpose, stage and tool
+deeptrace list
 
-researchloop run "..." --approve-plan        # stop after planning; prints the proposed DAG
-researchloop approve <run_id> [--plan edited.json]
-researchloop resume <run_id>                 # continue after approval, a pause, a halt or a crash
+deeptrace run "..." --approve-plan        # stop after planning; prints the proposed DAG
+deeptrace approve <run_id> [--plan edited.json]
+deeptrace resume <run_id>                 # continue after approval, a pause, a halt or a crash
 
-researchloop pause <run_id>                  # applied at the next step boundary
-researchloop cancel <run_id>
+deeptrace pause <run_id>                  # applied at the next step boundary
+deeptrace cancel <run_id>
 
-researchloop run "..." --webhook https://hooks.example/report   # deliver the finished report
-researchloop resolve <run_id>                                    # list interrupted side-effecting calls
-researchloop resolve <run_id> <key> --outcome done|retry         # reconcile one of them
+deeptrace run "..." --webhook https://hooks.example/report   # deliver the finished report
+deeptrace resolve <run_id>                                    # list interrupted side-effecting calls
+deeptrace resolve <run_id> <key> --outcome done|retry         # reconcile one of them
 ```
 
 <details>
@@ -124,7 +124,7 @@ researchloop resolve <run_id> <key> --outcome done|retry         # reconcile one
 
 | Option | Default | Meaning |
 |---|---|---|
-| `--corpus DIR` | `$RESEARCHLOOP_CORPUS` | Search local files instead of the web |
+| `--corpus DIR` | `$DEEPTRACE_CORPUS` | Search local files instead of the web |
 | `--max-tasks` | 5 | Sub-questions in the initial plan |
 | `--concurrency` | 3 | Tasks researched in parallel |
 | `--fetch-pages` | 2 | Web hits per query fetched in full |
@@ -134,7 +134,7 @@ researchloop resolve <run_id> <key> --outcome done|retry         # reconcile one
 | `--max-replans` | 2 | Extra research rounds for evidence gaps |
 | `--critic` | off | Ask the LLM to review the report for missing aspects |
 | `--lease-ttl` | 30 | Seconds before a dead worker's run is taken over |
-| `--db` | `$RESEARCHLOOP_DB` or `researchloop.db` | SQLite file for runs |
+| `--db` | `$DEEPTRACE_DB` or `deeptrace.db` | SQLite file for runs |
 
 </details>
 
@@ -142,7 +142,7 @@ researchloop resolve <run_id> <key> --outcome done|retry         # reconcile one
 
 ```bash
 pip install -e ".[server]"
-researchloop serve --corpus examples/corpus            # API + embedded worker on :8000
+deeptrace serve --corpus examples/corpus            # API + embedded worker on :8000
 ```
 
 | Endpoint | |
@@ -163,9 +163,9 @@ Interactive docs are served at `/docs`.
 **API and workers as separate processes.** The API only writes runs to the database, and any number of workers execute them:
 
 ```bash
-researchloop serve --no-worker &
-researchloop worker &
-researchloop worker &
+deeptrace serve --no-worker &
+deeptrace worker &
+deeptrace worker &
 ```
 
 **Docker**: the same topology, one API plus two worker replicas on a shared volume:
@@ -221,7 +221,7 @@ No local bookkeeping can make an external side effect exactly-once on its own: t
 
 ```python
 import asyncio
-from researchloop import Budget, LocalCorpusSearch, OpenAICompatLLM, ResearchRuntime, RunStore
+from deeptrace_agent import Budget, LocalCorpusSearch, OpenAICompatLLM, ResearchRuntime, RunStore
 
 runtime = ResearchRuntime(
     OpenAICompatLLM.from_env(),
@@ -279,7 +279,7 @@ python evals/crash_recovery.py    # 83 scenarios, ~1 min; writes evals/results/
 ## 🗂️ Layout
 
 ```text
-src/researchloop/
+src/deeptrace_agent/
 ├── runtime.py       # the Plan → Execute → Report → Verify → Deliver state machine, human control
 ├── planner.py       # task DAG planning and replanning, with self-correction
 ├── executor.py      # per-task research, concurrent waves, page enrichment
@@ -313,8 +313,11 @@ Dockerfile · docker-compose.yml
 
 ## 🙏 Acknowledgements
 
-The overall design, with a resumable harness, an evidence ledger and a completion check that gates the final report, was inspired by the architecture described in [SichengLong26/deepresearch_agent_harness](https://github.com/SichengLong26/deepresearch_agent_harness). researchloop is an independent, from-scratch implementation with a different scope: a library, CLI and HTTP API, with no web UI, knowledge graph or skill system. Its claim-level faithfulness judge targets a gap the original's own documentation names: its claim-support metric is a deterministic proxy, not a semantic check.
+The overall design, with a resumable harness, an evidence ledger and a completion check that gates the final report, was inspired by the architecture described in [SichengLong26/deepresearch_agent_harness](https://github.com/SichengLong26/deepresearch_agent_harness). DeepTrace is an independent, from-scratch implementation with a different scope: a library, CLI and HTTP API, with no web UI, knowledge graph or skill system. Its claim-level faithfulness judge targets a gap the original's own documentation names: its claim-support metric is a deterministic proxy, not a semantic check.
 
 ## 📄 License
 
+
 [MIT](LICENSE)
+
+<sub>DeepTrace was previously named *researchloop*.</sub>

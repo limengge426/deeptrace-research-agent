@@ -8,8 +8,8 @@ import re
 from collections import Counter
 from typing import Any, Callable
 
-from researchloop.llm import Completion
-from researchloop.search import SearchHit
+from deeptrace_agent.llm import Completion
+from deeptrace_agent.search import SearchHit
 
 Handler = Callable[[str, str], Any]
 

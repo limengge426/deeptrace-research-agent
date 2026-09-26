@@ -3,11 +3,11 @@
 import asyncio
 import re
 
-from researchloop import ResearchRuntime, RunStore
-from researchloop.faithfulness import extract_claims, judge_claims
-from researchloop.ledger import EvidenceLedger
-from researchloop.models import Report, Section
-from researchloop.search import SearchHit
+from deeptrace_agent import ResearchRuntime, RunStore
+from deeptrace_agent.faithfulness import extract_claims, judge_claims
+from deeptrace_agent.ledger import EvidenceLedger
+from deeptrace_agent.models import Report, Section
+from deeptrace_agent.search import SearchHit
 
 from . import fakes
 from .fakes import FakeSearch, ScriptedLLM

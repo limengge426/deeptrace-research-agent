@@ -7,8 +7,8 @@ import pytest
 pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient  # noqa: E402
 
-from researchloop import Budget, ResearchRuntime, RunStore  # noqa: E402
-from researchloop.server import create_app  # noqa: E402
+from deeptrace_agent import Budget, ResearchRuntime, RunStore  # noqa: E402
+from deeptrace_agent.server import create_app  # noqa: E402
 
 from .fakes import FakeSearch, ScriptedLLM  # noqa: E402
 

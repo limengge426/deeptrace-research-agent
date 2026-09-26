@@ -127,25 +127,25 @@ def summarize(states: Iterable[RunState]) -> dict[str, Any]:
 def to_prometheus(summary: dict[str, Any]) -> str:
     """Render ``summarize`` output in the Prometheus text exposition format."""
     lines = [
-        "# HELP researchloop_runs Runs by status.",
-        "# TYPE researchloop_runs gauge",
-        *[f'researchloop_runs{{status="{s}"}} {n}' for s, n in sorted(summary["by_status"].items())],
-        "# HELP researchloop_llm_tokens_total LLM tokens by call purpose.",
-        "# TYPE researchloop_llm_tokens_total counter",
-        *[f'researchloop_llm_tokens_total{{purpose="{p}"}} {v["tokens"]}' for p, v in sorted(summary["llm"].items())],
-        "# HELP researchloop_llm_calls_total LLM calls by call purpose.",
-        "# TYPE researchloop_llm_calls_total counter",
-        *[f'researchloop_llm_calls_total{{purpose="{p}"}} {v["calls"]}' for p, v in sorted(summary["llm"].items())],
-        "# HELP researchloop_tool_calls_total Executed tool calls (cache misses) by tool.",
-        "# TYPE researchloop_tool_calls_total counter",
-        *[f'researchloop_tool_calls_total{{tool="{t}"}} {v["calls"]}' for t, v in sorted(summary["tools"].items())],
-        "# HELP researchloop_tool_cache_hits_total Tool calls served from the idempotency cache.",
-        "# TYPE researchloop_tool_cache_hits_total counter",
-        *[f'researchloop_tool_cache_hits_total{{tool="{t}"}} {v["cache_hits"]}'
+        "# HELP deeptrace_runs Runs by status.",
+        "# TYPE deeptrace_runs gauge",
+        *[f'deeptrace_runs{{status="{s}"}} {n}' for s, n in sorted(summary["by_status"].items())],
+        "# HELP deeptrace_llm_tokens_total LLM tokens by call purpose.",
+        "# TYPE deeptrace_llm_tokens_total counter",
+        *[f'deeptrace_llm_tokens_total{{purpose="{p}"}} {v["tokens"]}' for p, v in sorted(summary["llm"].items())],
+        "# HELP deeptrace_llm_calls_total LLM calls by call purpose.",
+        "# TYPE deeptrace_llm_calls_total counter",
+        *[f'deeptrace_llm_calls_total{{purpose="{p}"}} {v["calls"]}' for p, v in sorted(summary["llm"].items())],
+        "# HELP deeptrace_tool_calls_total Executed tool calls (cache misses) by tool.",
+        "# TYPE deeptrace_tool_calls_total counter",
+        *[f'deeptrace_tool_calls_total{{tool="{t}"}} {v["calls"]}' for t, v in sorted(summary["tools"].items())],
+        "# HELP deeptrace_tool_cache_hits_total Tool calls served from the idempotency cache.",
+        "# TYPE deeptrace_tool_cache_hits_total counter",
+        *[f'deeptrace_tool_cache_hits_total{{tool="{t}"}} {v["cache_hits"]}'
           for t, v in sorted(summary["tools"].items())],
     ]
     for key in ("seconds_p50", "seconds_p95", "support_rate_final_mean"):
         value = summary["done"][key]
         if value is not None:
-            lines += [f"# TYPE researchloop_done_{key} gauge", f"researchloop_done_{key} {value}"]
+            lines += [f"# TYPE deeptrace_done_{key} gauge", f"deeptrace_done_{key} {value}"]
     return "\n".join(lines) + "\n"

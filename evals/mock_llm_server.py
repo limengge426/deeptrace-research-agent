@@ -5,7 +5,7 @@ so the full deployment (HTTP LLM client, API, separate worker processes, Docker)
 can be exercised without a real model or API key.
 
     python evals/mock_llm_server.py --port 9100
-    RESEARCHLOOP_BASE_URL=http://127.0.0.1:9100/v1 RESEARCHLOOP_API_KEY=x researchloop serve
+    DEEPTRACE_BASE_URL=http://127.0.0.1:9100/v1 DEEPTRACE_API_KEY=x deeptrace serve
 """
 
 from __future__ import annotations

@@ -6,11 +6,11 @@ import json
 import httpx
 import pytest
 
-from researchloop import ResearchRuntime, RunStore
-from researchloop.budget import Budget, BudgetMeter
-from researchloop.models import RunState
-from researchloop.runtime import InvalidAction
-from researchloop.tools import (
+from deeptrace_agent import ResearchRuntime, RunStore
+from deeptrace_agent.budget import Budget, BudgetMeter
+from deeptrace_agent.models import RunState
+from deeptrace_agent.runtime import InvalidAction
+from deeptrace_agent.tools import (
     FetchPageTool,
     ToolOutcomeUnknown,
     ToolRunner,
@@ -237,7 +237,7 @@ def test_api_accepts_a_webhook_and_exposes_reconciliation(tmp_path):
     pytest.importorskip("fastapi")
     from fastapi.testclient import TestClient
 
-    from researchloop.server import create_app
+    from deeptrace_agent.server import create_app
 
     receiver = Receiver()
     runtime = ResearchRuntime(ScriptedLLM(), FakeSearch(), RunStore(tmp_path / "a.db"), owner="api",

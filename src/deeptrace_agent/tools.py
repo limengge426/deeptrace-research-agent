@@ -164,7 +164,7 @@ class FetchPageTool:
     def __init__(self, client: httpx.AsyncClient | None = None, *, max_bytes: int = 2_000_000,
                  max_chars: int = 60_000) -> None:
         self._client = client or httpx.AsyncClient(
-            timeout=15.0, follow_redirects=True, headers={"User-Agent": "researchloop/0.3 (+research agent)"}
+            timeout=15.0, follow_redirects=True, headers={"User-Agent": "deeptrace-agent/0.3 (+research agent)"}
         )
         self.max_bytes = max_bytes
         self.max_chars = max_chars

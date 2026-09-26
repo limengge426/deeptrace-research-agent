@@ -2,12 +2,12 @@ import asyncio
 
 import pytest
 
-from researchloop.ledger import EvidenceLedger
-from researchloop.llm import LLMFormatError, parse_json_object
-from researchloop.models import Evidence, Finding, Plan, PlanError, Report, RunState, Section, Task
-from researchloop.planner import initial_plan
-from researchloop.search import LocalCorpusSearch, SearchHit
-from researchloop.verifier import check_report
+from deeptrace_agent.ledger import EvidenceLedger
+from deeptrace_agent.llm import LLMFormatError, parse_json_object
+from deeptrace_agent.models import Evidence, Finding, Plan, PlanError, Report, RunState, Section, Task
+from deeptrace_agent.planner import initial_plan
+from deeptrace_agent.search import LocalCorpusSearch, SearchHit
+from deeptrace_agent.verifier import check_report
 
 from .fakes import ScriptedLLM
 

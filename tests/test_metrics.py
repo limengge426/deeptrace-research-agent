@@ -4,8 +4,8 @@ import asyncio
 
 import pytest
 
-from researchloop import ResearchRuntime, RunStore
-from researchloop.metrics import run_metrics, summarize, to_prometheus
+from deeptrace_agent import ResearchRuntime, RunStore
+from deeptrace_agent.metrics import run_metrics, summarize, to_prometheus
 
 from . import fakes
 from .fakes import FakeSearch, ScriptedLLM
@@ -73,16 +73,16 @@ def test_summary_aggregates_runs_and_renders_prometheus(tmp_path):
     assert summary["llm"]["plan"]["calls"] == 2
 
     text = to_prometheus(summary)
-    assert 'researchloop_runs{status="done"} 2' in text
-    assert 'researchloop_llm_tokens_total{purpose="plan"} 200' in text
-    assert "# TYPE researchloop_tool_calls_total counter" in text
+    assert 'deeptrace_runs{status="done"} 2' in text
+    assert 'deeptrace_llm_tokens_total{purpose="plan"} 200' in text
+    assert "# TYPE deeptrace_tool_calls_total counter" in text
 
 
 def test_metrics_endpoints(tmp_path):
     pytest.importorskip("fastapi")
     from fastapi.testclient import TestClient
 
-    from researchloop.server import create_app
+    from deeptrace_agent.server import create_app
 
     runtime = ResearchRuntime(ScriptedLLM(), FakeSearch(), RunStore(tmp_path / "api.db"), owner="api")
     run_id = asyncio.run(runtime.start("Are heat pumps worth it?")).run_id
@@ -92,5 +92,5 @@ def test_metrics_endpoints(tmp_path):
         assert client.get("/metrics").json()["by_status"] == {"done": 1}
         prom = client.get("/metrics", params={"format": "prometheus"})
         assert prom.headers["content-type"].startswith("text/plain")
-        assert 'researchloop_runs{status="done"} 1' in prom.text
+        assert 'deeptrace_runs{status="done"} 1' in prom.text
         assert client.get("/metrics", params={"format": "xml"}).status_code == 422

@@ -4,7 +4,7 @@ import asyncio
 
 import pytest
 
-from researchloop import Budget, ResearchRuntime, RunStore
+from deeptrace_agent import Budget, ResearchRuntime, RunStore
 
 from . import fakes
 from .fakes import FakeSearch, ScriptedLLM

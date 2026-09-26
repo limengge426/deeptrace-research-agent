@@ -18,6 +18,8 @@ from typing import Any, Protocol
 
 import httpx
 
+from .env import getenv
+
 
 class LLMError(RuntimeError):
     """The provider failed after all retries."""
@@ -74,13 +76,13 @@ class OpenAICompatLLM:
 
     @classmethod
     def from_env(cls) -> OpenAICompatLLM:
-        api_key = os.getenv("RESEARCHLOOP_API_KEY") or os.getenv("OPENAI_API_KEY")
+        api_key = getenv("API_KEY") or os.getenv("OPENAI_API_KEY")
         if not api_key:
-            raise LLMError("set RESEARCHLOOP_API_KEY (or OPENAI_API_KEY)")
+            raise LLMError("set DEEPTRACE_API_KEY (or OPENAI_API_KEY)")
         return cls(
-            model=os.getenv("RESEARCHLOOP_MODEL", "gpt-4o-mini"),
+            model=getenv("MODEL", "gpt-4o-mini"),
             api_key=api_key,
-            base_url=os.getenv("RESEARCHLOOP_BASE_URL", "https://api.openai.com/v1"),
+            base_url=getenv("BASE_URL", "https://api.openai.com/v1"),
         )
 
     async def complete(self, system: str, user: str, *, purpose: str, json_mode: bool = False) -> Completion:

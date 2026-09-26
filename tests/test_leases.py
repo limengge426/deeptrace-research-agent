@@ -6,11 +6,11 @@ import time
 
 import pytest
 
-from researchloop import ResearchRuntime, RunStore
-from researchloop.models import RunState
-from researchloop.runtime import RunLocked
-from researchloop.store import LeaseLost
-from researchloop.worker import Worker
+from deeptrace_agent import ResearchRuntime, RunStore
+from deeptrace_agent.models import RunState
+from deeptrace_agent.runtime import RunLocked
+from deeptrace_agent.store import LeaseLost
+from deeptrace_agent.worker import Worker
 
 from . import fakes
 from .fakes import FakeSearch, ScriptedLLM

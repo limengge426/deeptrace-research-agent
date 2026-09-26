@@ -7,8 +7,8 @@ from pathlib import Path
 import httpx
 import pytest
 
-from researchloop import cli
-from researchloop.llm import LLMError, OpenAICompatLLM
+from deeptrace_agent import cli
+from deeptrace_agent.llm import LLMError, OpenAICompatLLM
 
 from .fakes import ScriptedLLM
 
@@ -97,3 +97,14 @@ def test_cli_run_show_and_list_against_example_corpus(tmp_path, monkeypatch, cap
     assert "run_finished" in capsys.readouterr().out
     assert cli.main(["--db", db, "list"]) == 0
     assert run_id in capsys.readouterr().out
+
+
+def test_env_prefers_deeptrace_names_and_falls_back_to_researchloop(monkeypatch):
+    from deeptrace_agent.env import getenv
+
+    monkeypatch.delenv("DEEPTRACE_MODEL", raising=False)
+    monkeypatch.setenv("RESEARCHLOOP_MODEL", "old-name")
+    assert getenv("MODEL") == "old-name"
+    monkeypatch.setenv("DEEPTRACE_MODEL", "new-name")
+    assert getenv("MODEL") == "new-name"
+    assert getenv("NOT_SET_ANYWHERE", "default") == "default"

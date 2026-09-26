@@ -1,4 +1,4 @@
-"""researchloop: an evidence-first, resumable research agent."""
+"""DeepTrace: a fault-tolerant deep research agent that traces every claim to its source."""
 
 from .budget import Budget, BudgetExceeded
 from .ledger import EvidenceLedger
@@ -22,4 +22,4 @@ __all__ = [
     "SearchProvider",
     "TavilySearch",
 ]
-__version__ = "0.2.0"
+__version__ = "0.3.0"

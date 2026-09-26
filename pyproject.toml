@@ -3,8 +3,8 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "researchloop"
-version = "0.2.0"
+name = "deeptrace-agent"
+version = "0.3.0"
 description = "An evidence-first, resumable research agent: plan, research in parallel, write a cited report, verify, repeat."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -17,10 +17,10 @@ server = ["fastapi>=0.110", "uvicorn>=0.29"]
 dev = ["pytest>=8", "fastapi>=0.110", "uvicorn>=0.29"]
 
 [project.scripts]
-researchloop = "researchloop.cli:main"
+deeptrace = "deeptrace_agent.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/researchloop"]
+packages = ["src/deeptrace_agent"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

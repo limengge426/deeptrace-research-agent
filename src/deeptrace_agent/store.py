@@ -94,7 +94,7 @@ class Event:
 
 
 class RunStore:
-    def __init__(self, path: str | Path = "researchloop.db") -> None:
+    def __init__(self, path: str | Path = "deeptrace.db") -> None:
         self.path = str(path)
         if self.path != ":memory:":
             Path(self.path).parent.mkdir(parents=True, exist_ok=True)

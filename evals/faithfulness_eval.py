@@ -17,7 +17,7 @@ Three steps, each resumable (finished work is skipped on re-runs):
     python evals/fetch_wikipedia.py
     python evals/faithfulness_eval.py runs grade detect report
 
-Needs RESEARCHLOOP_API_KEY (read from the environment or .env). Uses an OpenAI-compatible API.
+Needs DEEPTRACE_API_KEY (read from the environment or .env). Uses an OpenAI-compatible API.
 """
 
 from __future__ import annotations
@@ -35,15 +35,16 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / "src")]
 
-from researchloop import ResearchRuntime, RunStore  # noqa: E402
-from researchloop.faithfulness import FAILING, Claim, extract_claims, judge_claims  # noqa: E402
-from researchloop.ledger import EvidenceLedger  # noqa: E402
-from researchloop.llm import Completion, OpenAICompatLLM, estimate_tokens, parse_json_object  # noqa: E402
-from researchloop.metrics import run_metrics  # noqa: E402
-from researchloop.search import LocalCorpusSearch  # noqa: E402
-from researchloop.verifier import _FIGURE_RE  # noqa: E402
-from researchloop.faithfulness import split_sentences  # noqa: E402
-from researchloop.models import CITATION_RE  # noqa: E402
+from deeptrace_agent import ResearchRuntime, RunStore  # noqa: E402
+from deeptrace_agent.env import getenv  # noqa: E402
+from deeptrace_agent.faithfulness import FAILING, Claim, extract_claims, judge_claims  # noqa: E402
+from deeptrace_agent.ledger import EvidenceLedger  # noqa: E402
+from deeptrace_agent.llm import Completion, OpenAICompatLLM, estimate_tokens, parse_json_object  # noqa: E402
+from deeptrace_agent.metrics import run_metrics  # noqa: E402
+from deeptrace_agent.search import LocalCorpusSearch  # noqa: E402
+from deeptrace_agent.verifier import _FIGURE_RE  # noqa: E402
+from deeptrace_agent.faithfulness import split_sentences  # noqa: E402
+from deeptrace_agent.models import CITATION_RE  # noqa: E402
 
 DATA = ROOT / "evals" / "data"
 RESULTS = ROOT / "evals" / "results"
@@ -73,8 +74,8 @@ def load_env() -> None:
 
 
 def llm(model: str) -> OpenAICompatLLM:
-    return OpenAICompatLLM(model, os.environ["RESEARCHLOOP_API_KEY"],
-                           os.getenv("RESEARCHLOOP_BASE_URL", "https://api.openai.com/v1"), temperature=0.2,
+    return OpenAICompatLLM(model, getenv("API_KEY"),
+                           getenv("BASE_URL", "https://api.openai.com/v1"), temperature=0.2,
                            max_retries=12)
 
 

@@ -15,8 +15,8 @@ PY=${PYTHON:-python}
 RUNS=${RUNS:-4}
 TTL=${TTL:-3}
 WORK=$(mktemp -d)
-export RESEARCHLOOP_DB="$WORK/runs.db" RESEARCHLOOP_API_KEY=mock RESEARCHLOOP_CORPUS=examples/corpus \
-       RESEARCHLOOP_BASE_URL=http://127.0.0.1:9100/v1
+export DEEPTRACE_DB="$WORK/runs.db" DEEPTRACE_API_KEY=mock DEEPTRACE_CORPUS=examples/corpus \
+       DEEPTRACE_BASE_URL=http://127.0.0.1:9100/v1
 PIDS=()
 cleanup() { kill "${PIDS[@]}" 2>/dev/null || true; wait 2>/dev/null || true; rm -rf "$WORK"; }
 trap cleanup EXIT
@@ -25,11 +25,11 @@ wait_for() { for _ in $(seq 1 50); do curl -sf "$1" >/dev/null && return 0; slee
 json() { "$PY" -c "import sys, json; print(json.load(sys.stdin)$1)"; }
 
 "$PY" evals/mock_llm_server.py --port 9100 --delay 0.25 & PIDS+=($!)
-"$PY" -m researchloop serve --port 8765 --no-worker --lease-ttl "$TTL" >"$WORK/api.log" 2>&1 & PIDS+=($!)
+"$PY" -m deeptrace_agent serve --port 8765 --no-worker --lease-ttl "$TTL" >"$WORK/api.log" 2>&1 & PIDS+=($!)
 wait_for http://127.0.0.1:9100/calls
 wait_for http://127.0.0.1:8765/health
-"$PY" -m researchloop worker --lease-ttl "$TTL" >"$WORK/w1.log" 2>&1 & W1=$!; PIDS+=($W1)
-"$PY" -m researchloop worker --lease-ttl "$TTL" >"$WORK/w2.log" 2>&1 & PIDS+=($!)
+"$PY" -m deeptrace_agent worker --lease-ttl "$TTL" >"$WORK/w1.log" 2>&1 & W1=$!; PIDS+=($W1)
+"$PY" -m deeptrace_agent worker --lease-ttl "$TTL" >"$WORK/w2.log" 2>&1 & PIDS+=($!)
 
 IDS=()
 for i in $(seq 1 "$RUNS"); do
@@ -44,7 +44,7 @@ for _ in $(seq 1 50); do
 import sqlite3, sys, time
 c = sqlite3.connect(sys.argv[1])
 print(c.execute('select count(*) from leases where owner like ? and expires_at > ?', (f'%:{sys.argv[2]}:%', time.time())).fetchone()[0])
-" "$RESEARCHLOOP_DB" "$W1" 2>/dev/null || echo 0)
+" "$DEEPTRACE_DB" "$W1" 2>/dev/null || echo 0)
   [ "$held" -gt 0 ] && break
   sleep 0.1
 done
@@ -60,7 +60,7 @@ while :; do
 done
 echo "all ${#IDS[@]} runs done $(( $(date +%s) - start ))s after the kill"
 
-"$PY" - "$RESEARCHLOOP_DB" "$W1" "${IDS[@]}" <<'EOF'
+"$PY" - "$DEEPTRACE_DB" "$W1" "${IDS[@]}" <<'EOF'
 import json, sqlite3, sys
 db, dead_pid, run_ids = sys.argv[1], sys.argv[2], sys.argv[3:]
 conn = sqlite3.connect(db)

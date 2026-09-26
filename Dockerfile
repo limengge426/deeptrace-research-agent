@@ -9,7 +9,7 @@ RUN pip install --no-cache-dir ".[server]" \
     && mkdir /data && chown app /data
 
 USER app
-ENV RESEARCHLOOP_DB=/data/researchloop.db \
+ENV DEEPTRACE_DB=/data/deeptrace.db \
     PYTHONUNBUFFERED=1
 VOLUME /data
 EXPOSE 8000
@@ -18,4 +18,4 @@ HEALTHCHECK --interval=10s --timeout=3s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"
 
 # API with an embedded worker. docker-compose.yml runs the API and workers separately.
-CMD ["researchloop", "serve", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["deeptrace", "serve", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,9 +1,9 @@
 """HTTP API (FastAPI): submit runs, follow them live over SSE, fetch reports.
 
 The API only writes runs to the database; workers (embedded in this process by
-default, or separate ``researchloop worker`` processes) claim and execute them.
+default, or separate ``deeptrace worker`` processes) claim and execute them.
 
-    uvicorn researchloop.server:app_from_env --factory
+    uvicorn deeptrace_agent.server:app_from_env --factory
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ from fastapi.responses import PlainTextResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from . import metrics as run_metrics
+from .env import getenv
 from .models import TERMINAL
 from .runtime import InvalidAction, ResearchRuntime
 from .worker import Worker
@@ -79,7 +80,7 @@ def create_app(runtime: ResearchRuntime, *, embedded_worker: bool = True, poll_i
         if task:
             await task
 
-    app = FastAPI(title="researchloop", version="0.2.0", lifespan=lifespan)
+    app = FastAPI(title="DeepTrace", version="0.3.0", lifespan=lifespan)
 
     def view(run_id: str) -> RunView:
         try:
@@ -214,13 +215,13 @@ def app_from_env() -> FastAPI:
 
     from .tools import FetchPageTool
 
-    corpus = os.getenv("RESEARCHLOOP_CORPUS")
+    corpus = getenv("CORPUS")
     runtime = ResearchRuntime(
         OpenAICompatLLM.from_env(),
         LocalCorpusSearch(corpus) if corpus else TavilySearch(),
-        RunStore(os.getenv("RESEARCHLOOP_DB", "researchloop.db")),
-        budget=Budget(max_tokens=int(os.getenv("RESEARCHLOOP_MAX_TOKENS", "250000"))),
+        RunStore(getenv("DB", "deeptrace.db")),
+        budget=Budget(max_tokens=int(getenv("MAX_TOKENS", "250000"))),
         fetch=None if corpus else FetchPageTool(),
     )
-    embedded = os.getenv("RESEARCHLOOP_EMBEDDED_WORKER", "1") != "0"
+    embedded = getenv("EMBEDDED_WORKER", "1") != "0"
     return create_app(runtime, embedded_worker=embedded)

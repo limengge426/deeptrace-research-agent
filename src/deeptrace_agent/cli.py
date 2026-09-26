@@ -1,4 +1,4 @@
-"""Command-line interface: ``researchloop run | resume | show | list | worker | serve``."""
+"""Command-line interface: ``deeptrace run | resume | show | list | worker | serve``."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ import time
 from pathlib import Path
 
 from .budget import Budget
+from .env import getenv
 from .llm import LLMError, OpenAICompatLLM
 from .runtime import InvalidAction, ResearchRuntime, RunLocked, RunResult
 from .search import LocalCorpusSearch, SearchProvider, TavilySearch
@@ -17,7 +18,7 @@ from .store import RunStore
 
 
 def _search_from_args(args: argparse.Namespace) -> SearchProvider:
-    corpus = args.corpus or (None if args.web else os.getenv("RESEARCHLOOP_CORPUS"))
+    corpus = args.corpus or (None if args.web else getenv("CORPUS"))
     if corpus:
         return LocalCorpusSearch(corpus)
     return TavilySearch()
@@ -51,14 +52,14 @@ def _report(result: RunResult, out_dir: Path) -> int:
         for t in state.plan.tasks:
             deps = f"  (after {', '.join(t.depends_on)})" if t.depends_on else ""
             print(f"  {t.id}: {t.question}{deps}")
-        print(f"approve with: researchloop approve {result.run_id} [--plan edited.json], then resume")
+        print(f"approve with: deeptrace approve {result.run_id} [--plan edited.json], then resume")
         return 0
     if state.error:
         print(f"stopped: {state.error}")
     if result.status == "halted":
-        print(f"continue with: researchloop resume {result.run_id} --max-tokens <larger>")
+        print(f"continue with: deeptrace resume {result.run_id} --max-tokens <larger>")
     if result.status == "paused":
-        print(f"continue with: researchloop resume {result.run_id}")
+        print(f"continue with: deeptrace resume {result.run_id}")
     return 1
 
 
@@ -97,10 +98,10 @@ def build_parser() -> argparse.ArgumentParser:
     # --db is accepted both before and after the subcommand.
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument(
-        "--db", default=argparse.SUPPRESS, help="SQLite file for runs (default: $RESEARCHLOOP_DB or researchloop.db)"
+        "--db", default=argparse.SUPPRESS, help="SQLite file for runs (default: $DEEPTRACE_DB or deeptrace.db)"
     )
-    parser = argparse.ArgumentParser(prog="researchloop", description="Evidence-first research agent.", parents=[common])
-    parser.set_defaults(db=os.getenv("RESEARCHLOOP_DB", "researchloop.db"))
+    parser = argparse.ArgumentParser(prog="deeptrace", description="DeepTrace: a fault-tolerant deep research agent.", parents=[common])
+    parser.set_defaults(db=getenv("DB", "deeptrace.db"))
     sub = parser.add_subparsers(dest="command", required=True)
 
     def add_run_options(p: argparse.ArgumentParser) -> None:
@@ -153,7 +154,7 @@ def build_parser() -> argparse.ArgumentParser:
     serve = sub.add_parser("serve", help="start the HTTP API (FastAPI + uvicorn)", parents=[common])
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8000)
-    serve.add_argument("--no-worker", action="store_true", help="API only; run `researchloop worker` separately")
+    serve.add_argument("--no-worker", action="store_true", help="API only; run `deeptrace worker` separately")
     add_run_options(serve)
     return parser
 
@@ -253,7 +254,7 @@ def _serve(args: argparse.Namespace, store: RunStore) -> int:
 
         from .server import create_app
     except ImportError:
-        print('error: install the server extra: pip install "researchloop[server]"', file=sys.stderr)
+        print('error: install the server extra: pip install "deeptrace_agent[server]"', file=sys.stderr)
         return 2
     app = create_app(_runtime(args, store), embedded_worker=not args.no_worker)
     uvicorn.run(app, host=args.host, port=args.port)
@@ -279,7 +280,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     except KeyboardInterrupt:
-        print("\ninterrupted; resume later with `researchloop resume <run id>`", file=sys.stderr)
+        print("\ninterrupted; resume later with `deeptrace resume <run id>`", file=sys.stderr)
         return 130
     finally:
         store.close()
