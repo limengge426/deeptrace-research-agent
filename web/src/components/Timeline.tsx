@@ -12,7 +12,12 @@ function describe(e: EventRecord, previousOwner: string | undefined): Line {
   const p = e.payload;
   switch (e.kind) {
     case "run_created":
+      if (p.followup) return { icon: "✦", text: t("ev.createdFollowup", { turn: p.turn, n: p.inherited_evidence ?? 0 }) };
       return { icon: "✦", text: p.approve_plan ? t("ev.createdApproval") : t("ev.created") };
+    case "route":
+      return { icon: "⤷", text: t("ev.route", { q: p.question, decision: label("route", p.decision) }), tone: "accent" };
+    case "answer_incomplete":
+      return { icon: "+", text: t("ev.answerIncomplete", { what: list(p.missing) }), tone: "warn" };
     case "run_claimed":
       return previousOwner && previousOwner !== p.owner
         ? { icon: "⇄", text: t("ev.takeover", { pid: pid(p.owner), token: p.token, stage: label("stage", p.stage) }), tone: "accent" }
@@ -58,6 +63,7 @@ function describe(e: EventRecord, previousOwner: string | undefined): Line {
     case "report_repaired":
       return { icon: "✎", text: t("ev.repaired", { sections: list(p.sections), n: p.kept?.length ?? 0 }), tone: "accent" };
     case "replan":
+      if (p.reason === "route") return { icon: "+", text: t("ev.replanFollowup", { n: p.tasks?.length ?? 0 }), tone: "accent" };
       return { icon: "+", text: t("ev.replan", { n: p.tasks?.length ?? 0, round: p.round }), tone: "accent" };
     case "delivery":
       return p.status === "delivered"

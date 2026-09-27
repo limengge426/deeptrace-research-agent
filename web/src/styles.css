@@ -325,3 +325,13 @@ button.wide { width: 100%; }
   .report { padding: 18px; }
   .stages li { font-size: 11px; padding: 6px 4px; }
 }
+
+/* conversations */
+.run-meta { display: flex; align-items: center; gap: 6px; }
+.route-note { margin-top: 4px; }
+.thread { display: flex; gap: 8px; overflow-x: auto; margin: 4px 0 12px; padding-bottom: 2px; }
+.turn { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 150px; max-width: 240px; text-align: left; }
+.turn.active { border-color: var(--accent); background: var(--accent-soft); }
+.turn-n { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.turn-q { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.composer.followup { margin-top: 20px; }

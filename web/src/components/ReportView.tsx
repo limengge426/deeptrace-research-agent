@@ -75,7 +75,9 @@ export function ReportView({ state }: { state: RunState }) {
         )}
         {report.sections.map((section) => (
           <section key={section.heading}>
-            <h3>{section.heading}{section.synthesis && <span className="tag">{t("synthesis")}</span>}</h3>
+            {state.mode !== "followup" && (
+              <h3>{section.heading}{section.synthesis && <span className="tag">{t("synthesis")}</span>}</h3>
+            )}
             {section.paragraphs.map((para, i) => (
               <p key={i}>{para.map((s, j) => <SentenceView key={j} s={s} onCite={setOpen} />)}</p>
             ))}

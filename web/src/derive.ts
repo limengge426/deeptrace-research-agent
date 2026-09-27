@@ -13,7 +13,13 @@ export interface DagTask {
   evidence: number;
 }
 
-export const STAGES = ["plan", "execute", "report", "verify", "deliver", "done"] as const;
+export const STAGES = ["plan", "execute", "report", "verify", "deliver", "done"];
+export const FOLLOWUP_STAGES = ["route", "execute", "report", "verify", "done"];
+
+/** A follow-up run starts by routing the question; a full research run starts by planning. */
+export function isFollowup(events: EventRecord[]): boolean {
+  return events.some((e) => e.kind === "run_created" && e.payload.followup);
+}
 
 export function deriveTasks(events: EventRecord[]): DagTask[] {
   const tasks = new Map<string, DagTask>();
@@ -41,9 +47,9 @@ export function deriveTasks(events: EventRecord[]): DagTask[] {
 }
 
 export function deriveStage(events: EventRecord[]): { current: string; finished: string | null; visited: Set<string> } {
-  let current = "plan";
+  let current = isFollowup(events) ? "route" : "plan";
   let finished: string | null = null;
-  const visited = new Set<string>(["plan"]);
+  const visited = new Set<string>([current]);
   for (const e of events) {
     if (e.kind === "stage") {
       current = e.payload.to;

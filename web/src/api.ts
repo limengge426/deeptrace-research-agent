@@ -58,6 +58,11 @@ export interface RunState {
   delivery: { status: string; error?: string } | null;
   lease: { owner: string; expires_in: number } | null;
   verdict_source?: string;
+  thread_id?: string;
+  parent_id?: string | null;
+  turn?: number;
+  mode?: "report" | "followup";
+  route?: Route | null;
   metrics: {
     llm: Record<string, Record<string, number>>;
     tools: Record<string, Record<string, number>>;
@@ -68,20 +73,32 @@ export interface RunState {
   };
 }
 
+export interface Route {
+  decision: "answer" | "extend" | "new";
+  question: string;
+  tasks: string[];
+  missing: string[];
+  reason: string;
+}
+
 export interface RunSummary {
   id: string;
   question: string;
   status: string;
   created_at?: number;
+  thread_id?: string | null;
 }
 
 export interface Source {
   demo: boolean;
   listRuns(): Promise<RunSummary[]>;
   getState(id: string): Promise<RunState>;
+  /** The runs of one conversation, oldest first. */
+  getThread(threadId: string): Promise<RunSummary[]>;
   /** Stream events from the start; returns an unsubscribe function. */
   subscribe(id: string, onEvents: (events: EventRecord[]) => void, onEnd: () => void): () => void;
   submit?(question: string, approvePlan: boolean): Promise<string>;
+  followup?(id: string, question: string): Promise<string>;
   control?(id: string, action: "pause" | "cancel" | "resume"): Promise<void>;
   approve?(id: string, tasks: Array<Pick<Task, "id" | "question" | "depends_on">> | null): Promise<void>;
 }
@@ -136,6 +153,7 @@ export function liveSource(): Source {
     demo: false,
     listRuns: () => fetch("/runs?limit=50").then(json<RunSummary[]>),
     getState: (id) => fetch(`/runs/${id}/state`).then(json<RunState>),
+    getThread: (threadId) => fetch(`/threads/${threadId}`).then(json<RunSummary[]>),
     subscribe(id, onEvents, onEnd) {
       const controller = new AbortController();
       let last = 0;
@@ -179,6 +197,14 @@ export function liveSource(): Source {
       });
       return (await json<{ id: string }>(res)).id;
     },
+    async followup(id, question) {
+      const res = await fetch(`/runs/${id}/followups`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ question }),
+      });
+      return (await json<{ id: string }>(res)).id;
+    },
     async control(id, action) {
       await fetch(`/runs/${id}/${action}`, { method: "POST" }).then(json);
     },
@@ -211,6 +237,10 @@ export function demoSource(): Source {
     demo: true,
     listRuns: () => fetch(`${base}demo/index.json`).then(json<RunSummary[]>),
     getState: (id) => load(id).then((r) => r.state),
+    getThread: (threadId) =>
+      fetch(`${base}demo/index.json`)
+        .then(json<RunSummary[]>)
+        .then((runs) => runs.filter((r) => (r.thread_id ?? r.id) === threadId)),
     subscribe(id, onEvents, onEnd) {
       let stopped = false;
       load(id).then(async (rec) => {
