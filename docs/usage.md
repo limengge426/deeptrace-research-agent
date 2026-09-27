@@ -36,6 +36,9 @@ The report is written to `reports/<run_id>.md`, with a **Sources** section listi
 ### Inspect and control runs
 
 ```bash
+deeptrace ask <run_id> "What about running costs?"   # follow-up question in the run's conversation
+deeptrace thread <run_id>                 # the turns of that conversation
+
 deeptrace show <run_id>                   # event timeline + metrics per LLM purpose, stage and tool
 deeptrace list
 
@@ -98,6 +101,7 @@ The interface is in English; add `?lang=zh` to the URL (or use the link at the b
 | **Live** | The task graph, laid out by dependency level, updates as tasks start and finish, next to a readable event log. The log shows worker takeovers ("taken over by worker … lease token 2"), repairs and replans. |
 | **Plan review** | With *"Let me review the plan"* ticked, the run stops after planning; edit, add or remove sub-questions and dependencies, then approve. |
 | **Report** | Sentences are coloured by the claim judge (supported / partial / unsupported / contradicted). Hover for the judge's reason; click `[E3]` to open the source text and every sentence that cites it. |
+| **Follow-ups** | Below a finished report, ask a follow-up. The conversation's turns are shown above the stage bar; each follow-up shows how it was understood and whether it was answered from existing evidence or needed more research. |
 | **Metrics** | Tokens per LLM purpose, time per stage, evidence placed into prompts, tool calls and cache hits. |
 
 For development, `npm run dev` in `web/` proxies API calls to a server on port 8000. The same console runs as a static **replay demo** (`npm run build:demo`), published to GitHub Pages by [`pages.yml`](../.github/workflows/pages.yml). Its data comes from [`evals/export_demo.py`](../evals/export_demo.py), which exports real runs with worker names anonymised and evidence linked to the exact Wikipedia revisions.
@@ -116,6 +120,8 @@ deeptrace serve --corpus examples/corpus            # API + embedded worker on :
 | `GET /runs/{id}/events` | Live Server-Sent Events; reconnect with `Last-Event-ID` to resume the stream |
 | `GET /runs/{id}/report` | The Markdown report once the run is done |
 | `GET /runs/{id}/metrics` | LLM usage per purpose, tool calls and cache hits, time per stage, faithfulness |
+| `POST /runs/{id}/followups` `{"question"}` | Ask a follow-up on a finished run (202); 409 while the conversation has an unfinished turn |
+| `GET /threads/{id}` | The runs of one conversation, oldest first |
 | `POST /runs/{id}/pause` · `/cancel` · `/resume` | Human control |
 | `POST /runs/{id}/plan/approve` `{"tasks"?}` | Approve the proposed plan, or replace it with an edited DAG |
 | `GET /runs/{id}/tool-calls/pending` | Side-effecting calls interrupted mid-flight |

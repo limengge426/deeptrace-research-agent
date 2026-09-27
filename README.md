@@ -44,6 +44,7 @@ pip install -e ".[server]"
 export DEEPTRACE_API_KEY=sk-...              # any OpenAI-compatible endpoint (DEEPTRACE_BASE_URL, DEEPTRACE_MODEL)
 
 deeptrace run "Are heat pumps worth it in cold climates?" --corpus examples/corpus
+deeptrace ask <run_id> "What about running costs?" --corpus examples/corpus   # follow-up, reuses the evidence
 deeptrace serve --corpus examples/corpus     # web console at http://127.0.0.1:8000 (build it once: cd web && npm i && npm run build)
 docker compose up --build                    # API + two workers, optional Postgres / Neo4j profiles
 ```

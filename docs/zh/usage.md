@@ -36,6 +36,9 @@ deeptrace run "What changed in EU AI regulation in 2025?" --critic
 ### 查看和控制运行
 
 ```bash
+deeptrace ask <run_id> "What about running costs?"   # 在这次运行的对话里追问
+deeptrace thread <run_id>                 # 列出这段对话的每一轮
+
 deeptrace show <run_id>                   # 事件时间线 + 按 LLM 调用目的、阶段、工具统计的指标
 deeptrace list
 
@@ -98,6 +101,7 @@ deeptrace serve --corpus examples/corpus             # 打开 http://127.0.0.1:8
 | **实时** | 按依赖层级排布的任务图，随任务开始和结束实时更新，旁边是可读的事件日志。日志会显示 worker 接管（“已被 worker 接管，租约 token 2”）、修复和补充调研。 |
 | **计划审阅** | 勾选 *“研究开始前先让我审阅计划”* 后，运行会在规划后停下；可以修改、添加或删除子问题及依赖，然后批准。 |
 | **报告** | 句子按论断评审的结果着色（完全支持 / 部分支持 / 不支持 / 矛盾）。悬停可看评审理由；点击 `[E3]` 打开来源原文以及所有引用它的句子。 |
+| **追问** | 报告完成后在下方追问。对话的每一轮显示在阶段条上方；每次追问会显示它被理解成了什么问题，以及是用已有证据回答还是做了补充研究。 |
 | **指标** | 按 LLM 调用目的统计的 token、各阶段耗时、放入 prompt 的证据量、工具调用与缓存命中。 |
 
 开发时，在 `web/` 下运行 `npm run dev`，API 请求会被代理到 8000 端口的服务。同一个控制台也可以作为静态的**回放演示**运行（`npm run build:demo`），由 [`pages.yml`](../../.github/workflows/pages.yml) 发布到 GitHub Pages。演示数据来自 [`evals/export_demo.py`](../../evals/export_demo.py)，它导出真实的运行记录，把 worker 名称匿名化，并把证据链接到确切的 Wikipedia 版本。
@@ -116,6 +120,8 @@ deeptrace serve --corpus examples/corpus            # API + 内嵌 worker，端�
 | `GET /runs/{id}/events` | 实时 Server-Sent Events；断线后带 `Last-Event-ID` 重连即可接着收 |
 | `GET /runs/{id}/report` | 运行完成后的 Markdown 报告 |
 | `GET /runs/{id}/metrics` | 按调用目的统计的 LLM 用量、工具调用与缓存命中、各阶段耗时、忠实度 |
+| `POST /runs/{id}/followups` `{"question"}` | 对已完成的运行追问（202）；对话中还有未完成的一轮时返回 409 |
+| `GET /threads/{id}` | 一段对话的所有运行，按时间先后 |
 | `POST /runs/{id}/pause` · `/cancel` · `/resume` | 人工控制 |
 | `POST /runs/{id}/plan/approve` `{"tasks"?}` | 批准拟定的计划，或用修改后的 DAG 替换 |
 | `GET /runs/{id}/tool-calls/pending` | 执行中途被中断的有副作用调用 |

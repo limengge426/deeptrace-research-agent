@@ -8,7 +8,7 @@
 pytest
 ```
 
-105 tests, using a scripted LLM and a fake search provider, run offline in a few seconds (the Postgres and Neo4j tests are skipped unless those services are available; CI runs them). They cover:
+115 tests, using a scripted LLM and a fake search provider, run offline in a few seconds (the Postgres and Neo4j tests are skipped unless those services are available; CI runs them). They cover:
 
 - **Planning and repair**: parallel waves, dependency hand-off, citation repair, replanning after evidence gaps, one task failing without killing its siblings.
 - **Faithfulness**: claim extraction (including Chinese text and trailing citations), judge fail-closed behaviour, and repair of only the section holding a bad claim.
@@ -16,6 +16,7 @@ pytest
 - **Crash recovery**: resuming after a hard crash without repeating searches, budget halt and resume.
 - **Workers and leases**: two workers splitting a queue, orphaned-run takeover, and **a stalled worker fenced off after another worker takes over**.
 - **Human control**: cancel, pause and resume, plan approval with edited DAGs.
+- **Follow-ups**: answering from inherited evidence without searching, extending with new research while keeping evidence ids, escalating when the evidence is not enough, new topics, a crash while answering, and migrating existing databases.
 - **Tool layer**: replay, retry with the same key, reconciliation holds, page fetching, idempotent delivery.
 - **API, SSE and metrics**.
 

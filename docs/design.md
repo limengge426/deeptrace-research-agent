@@ -29,6 +29,15 @@ Every tool declares whether it has side effects and whether its receiver dedupli
 No local bookkeeping can make an external side effect exactly-once on its own: the call and the local write are two separate systems. The intent log makes every possible duplicate *detectable*, and idempotency keys let the receiver make it *harmless*.
 
 
+## 💬 Follow-up questions
+
+A follow-up is a run of its own, so leases, checkpoints, budgets and crash recovery apply unchanged. Runs of one conversation share a `thread_id` (the first run's id), and a follow-up may only be asked once every earlier turn has finished, so two turns never modify one conversation at once.
+
+1. **Inherit.** The follow-up copies the previous turn's plan, findings and evidence ledger. Ledger ids keep counting from where they were, so `E3` means the same source in every turn.
+2. **Route.** One model call rewrites the message as a standalone question (using the last three turns, each truncated) and decides: `answer` from the existing research, `extend` it with new sub-questions for what is missing (planned with the same replanner that closes evidence gaps), or `new` topic, researched from scratch as a full report. An unusable reply falls back to `answer`.
+3. **Answer.** A short answer is written from the evidence of the relevant findings only, then checked like a report: deterministic checks, the claim judge, targeted repair. It must cite whatever this turn newly researched, but not every inherited finding.
+4. **Escalate.** If the writer reports that the evidence cannot answer part of the question, the run plans research for exactly that part instead of guessing. So a wrong `answer` decision costs one extra call, not a wrong answer.
+
 ## 🗂️ Layout
 
 ```text
@@ -78,3 +87,4 @@ Dockerfile · docker-compose.yml
 - [x] Postgres store (`FOR UPDATE SKIP LOCKED`) for workers on several hosts
 - [ ] Passage-level retrieval benchmark (LLM-generated questions about specific facts)
 - [ ] A/B evaluation of the LangGraph agent researcher against the fixed pipeline with real models
+- [ ] Evaluate follow-ups with real models: routing accuracy on labelled follow-ups, and cost and faithfulness versus re-running the research from scratch
