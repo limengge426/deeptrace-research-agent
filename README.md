@@ -62,9 +62,6 @@ More: [web search, hybrid retrieval, the LangGraph agent, plan approval, the HTT
 | API / UI | FastAPI + Server-Sent Events, React + TypeScript |
 | Ops | Docker Compose, Prometheus metrics, GitHub Actions (SQLite, Postgres and Neo4j jobs), GitHub Pages |
 
-## Acknowledgements
-
-The overall design, with a resumable harness, an evidence ledger and a completion check that gates the final report, was inspired by the architecture described in [SichengLong26/deepresearch_agent_harness](https://github.com/SichengLong26/deepresearch_agent_harness). DeepTrace is an independent, from-scratch implementation; no code was copied. Its claim-level faithfulness judge targets a gap the original's own documentation names: its claim-support metric is a deterministic proxy, not a semantic check.
 
 ## License
 
