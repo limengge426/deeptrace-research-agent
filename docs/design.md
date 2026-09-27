@@ -1,6 +1,6 @@
 # Design
 
-[← Back to README](../README.md)
+[← Back to README](../README.md) · [中文](zh/design.md)
 
 ## Leases, fencing and the tool layer
 
@@ -12,7 +12,7 @@
 4. If the old worker was only *paused* (GC pause, suspended VM, blocked event loop) and wakes up later, its next checkpoint is conditioned on its old token and is rejected with `LeaseLost`, so it abandons the run instead of overwriting newer progress.
 5. A run that keeps failing (for example because of a bad API key) is marked `failed` after 3 claims instead of being retried forever.
 
-SQLite in WAL mode is safe for several processes on one host (one Docker volume), but not on a network filesystem shared across machines. Scaling beyond one host would mean moving the store to Postgres (`SELECT … FOR UPDATE SKIP LOCKED`).
+SQLite in WAL mode is safe for several processes on one host (one Docker volume), but not on a network filesystem shared across machines. For workers on several hosts, use the Postgres store (`--db postgresql+psycopg://…`), where claims use `SELECT … FOR UPDATE SKIP LOCKED`.
 
 
 ### How the tool layer handles crashes

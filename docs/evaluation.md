@@ -1,6 +1,6 @@
 # Evaluation
 
-[← Back to README](../README.md)
+[← Back to README](../README.md) · [中文](zh/evaluation.md)
 
 ## 🧪 Tests
 
@@ -8,7 +8,7 @@
 pytest
 ```
 
-80 tests, using a scripted LLM and a fake search provider, run offline in a few seconds. They cover:
+105 tests, using a scripted LLM and a fake search provider, run offline in a few seconds (the Postgres and Neo4j tests are skipped unless those services are available; CI runs them). They cover:
 
 - **Planning and repair**: parallel waves, dependency hand-off, citation repair, replanning after evidence gaps, one task failing without killing its siblings.
 - **Faithfulness**: claim extraction (including Chinese text and trailing citations), judge fail-closed behaviour, and repair of only the section holding a bad claim.
