@@ -1,19 +1,13 @@
 import { layers, type DagTask } from "../derive";
+import { label, t as tr } from "../i18n";
 
 const W = 230;
 const H = 78;
 const GAP_X = 56;
 const GAP_Y = 14;
 
-const STATE_TEXT: Record<string, string> = {
-  pending: "queued",
-  running: "researching…",
-  done: "done",
-  failed: "failed",
-};
-
 export function DagView({ tasks }: { tasks: DagTask[] }) {
-  if (tasks.length === 0) return <div className="empty">Waiting for the planner…</div>;
+  if (tasks.length === 0) return <div className="empty">{tr("waitingPlanner")}</div>;
   const cols = layers(tasks);
   const pos = new Map<string, { x: number; y: number }>();
   cols.forEach((col, c) => col.forEach((t, r) => pos.set(t.id, { x: c * (W + GAP_X), y: r * (H + GAP_Y) })));
@@ -46,8 +40,8 @@ export function DagView({ tasks }: { tasks: DagTask[] }) {
                  title={t.question}>
               <div className="node-head">
                 <span className="node-id">{t.id}</span>
-                {t.round > 0 && <span className="tag">replan</span>}
-                <span className="node-state">{STATE_TEXT[t.state]}{t.state === "done" ? ` · ${t.evidence} sources` : ""}</span>
+                {t.round > 0 && <span className="tag">{tr("replanTag")}</span>}
+                <span className="node-state">{label("task", t.state)}{t.state === "done" ? ` · ${tr("sources", { n: t.evidence })}` : ""}</span>
               </div>
               <div className="node-q">{t.question}</div>
             </div>

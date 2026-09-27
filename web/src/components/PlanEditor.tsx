@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Task } from "../api";
+import { t } from "../i18n";
 
 type Row = { id: string; question: string; deps: string };
 
@@ -22,11 +23,11 @@ export function PlanEditor({ tasks, busy, onApprove }: {
   return (
     <section className="panel plan-editor">
       <div className="panel-title">
-        Review the plan <span className="muted small">edit sub-questions or their dependencies, then approve</span>
+        {t("reviewTitle")} <span className="muted small">{t("reviewHint")}</span>
       </div>
       <table>
         <thead>
-          <tr><th>id</th><th>sub-question</th><th>depends on</th><th /></tr>
+          <tr><th>id</th><th>{t("colSubQuestion")}</th><th>{t("colDependsOn")}</th><th /></tr>
         </thead>
         <tbody>
           {rows.map((r, i) => (
@@ -34,15 +35,15 @@ export function PlanEditor({ tasks, busy, onApprove }: {
               <td className="mono">{r.id}</td>
               <td><input value={r.question} onChange={(e) => update(i, { question: e.target.value })} /></td>
               <td><input className="mono" value={r.deps} placeholder="—" onChange={(e) => update(i, { deps: e.target.value })} /></td>
-              <td><button className="ghost" onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))} aria-label="Remove">✕</button></td>
+              <td><button className="ghost" onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))} aria-label={t("remove")}>✕</button></td>
             </tr>
           ))}
         </tbody>
       </table>
       <div className="row">
-        <button onClick={() => setRows((rs) => [...rs, { id: nextId(), question: "", deps: "" }])}>+ Add sub-question</button>
+        <button onClick={() => setRows((rs) => [...rs, { id: nextId(), question: "", deps: "" }])}>{t("addSubQuestion")}</button>
         <span className="grow" />
-        {edited && <button onClick={() => setRows(initial)}>Reset</button>}
+        {edited && <button onClick={() => setRows(initial)}>{t("reset")}</button>}
         <button
           className="primary"
           disabled={busy || rows.length === 0 || rows.some((r) => r.question.trim().length < 3)}
@@ -54,7 +55,7 @@ export function PlanEditor({ tasks, busy, onApprove }: {
             })) : null)
           }
         >
-          {edited ? "Approve edited plan" : "Approve plan"}
+          {edited ? t("approveEdited") : t("approve")}
         </button>
       </div>
     </section>

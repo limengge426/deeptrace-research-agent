@@ -1,80 +1,93 @@
 import { useEffect, useRef } from "react";
 import type { EventRecord } from "../api";
+import { label, t } from "../i18n";
 
 type Line = { icon: string; text: string; tone?: "good" | "warn" | "bad" | "accent" } | null;
 
 const pid = (owner: string | undefined) => (owner ? owner.split(":")[1] ?? owner : "?");
 const pct = (x: number | undefined) => (x === undefined ? "?" : `${Math.round(x * 100)}%`);
-const list = (xs: any[] | undefined) => (xs && xs.length ? xs.join(", ") : "none");
+const list = (xs: any[] | undefined) => (xs && xs.length ? xs.join(t("listSep")) : t("none"));
 
 function describe(e: EventRecord, previousOwner: string | undefined): Line {
   const p = e.payload;
   switch (e.kind) {
     case "run_created":
-      return { icon: "✦", text: p.approve_plan ? "Run created (plan needs approval)" : "Run created" };
+      return { icon: "✦", text: p.approve_plan ? t("ev.createdApproval") : t("ev.created") };
     case "run_claimed":
       return previousOwner && previousOwner !== p.owner
-        ? { icon: "⇄", text: `Taken over by worker pid ${pid(p.owner)} (lease token ${p.token}) at ${p.stage}`, tone: "accent" }
-        : { icon: "▶", text: `Worker pid ${pid(p.owner)} claimed the run (lease token ${p.token})` };
+        ? { icon: "⇄", text: t("ev.takeover", { pid: pid(p.owner), token: p.token, stage: label("stage", p.stage) }), tone: "accent" }
+        : { icon: "▶", text: t("ev.claimed", { pid: pid(p.owner), token: p.token }) };
     case "plan":
-      return { icon: "◇", text: `Planned ${p.tasks?.length ?? 0} sub-questions` };
+      return { icon: "◇", text: t("ev.plan", { n: p.tasks?.length ?? 0 }) };
     case "plan_approved":
-      return { icon: "✓", text: p.edited ? "Plan edited and approved" : "Plan approved", tone: "good" };
+      return { icon: "✓", text: p.edited ? t("ev.planEdited") : t("ev.planApproved"), tone: "good" };
     case "run_held":
-      return { icon: "⏸", text: `Waiting: ${String(p.status).replace(/_/g, " ")}`, tone: "warn" };
+      return { icon: "⏸", text: t("ev.held", { status: label("status", String(p.status)) }), tone: "warn" };
     case "stage":
       return null; // shown by the stage bar
     case "task_started":
-      return { icon: "…", text: `${p.task} researching: ${p.question}` };
+      return { icon: "…", text: t("ev.taskStarted", { task: p.task, question: p.question }) };
     case "task_done":
-      return { icon: "●", text: `${p.task} done with ${(p.evidence ?? []).length} sources`, tone: "good" };
+      return { icon: "●", text: t("ev.taskDone", { task: p.task, n: (p.evidence ?? []).length }), tone: "good" };
     case "task_failed":
-      return { icon: "✕", text: `${p.task} failed: ${p.error}`, tone: "bad" };
+      return { icon: "✕", text: t("ev.taskFailed", { task: p.task, error: p.error }), tone: "bad" };
     case "fetch_failed":
-      return { icon: "!", text: `Could not fetch ${p.url}; kept the search snippet`, tone: "warn" };
+      return { icon: "!", text: t("ev.fetchFailed", { url: p.url }), tone: "warn" };
     case "tool_retry_after_crash":
-      return { icon: "↻", text: `Retrying interrupted ${p.tool} call (${p.read_only ? "read-only" : "same idempotency key"})`, tone: "accent" };
+      return { icon: "↻", text: t("ev.retry", { tool: p.tool, how: p.read_only ? t("ev.retryReadOnly") : t("ev.retryKey") }), tone: "accent" };
     case "tool_outcome_unknown":
-      return { icon: "?", text: `Interrupted ${p.tool} call cannot be retried safely: needs a human`, tone: "bad" };
+      return { icon: "?", text: t("ev.unknown", { tool: p.tool }), tone: "bad" };
     case "outline":
-      return { icon: "☰", text: `Outlined ${p.sections?.length ?? 0} sections` };
+      return { icon: "☰", text: t("ev.outline", { n: p.sections?.length ?? 0 }) };
     case "faithfulness":
       return {
         icon: "⚖",
-        text: `Checked ${p.claims} cited claims: ${p.supported} supported, ${p.partial} partial, ${p.unsupported + p.contradicted} unsupported (${pct(p.support_rate)} fully supported)`,
+        text: t("ev.faithfulness", {
+          claims: p.claims,
+          supported: p.supported,
+          partial: p.partial,
+          failing: p.unsupported + p.contradicted,
+          rate: pct(p.support_rate),
+        }),
         tone: p.unsupported + p.contradicted > 0 ? "warn" : "good",
       };
     case "verify":
       return p.passed
-        ? { icon: "✓", text: "Verification passed", tone: "good" }
-        : { icon: "⚑", text: `Verification found: ${list(p.issues?.length ? [...new Set(p.issues)] : p.gaps)}`, tone: "warn" };
+        ? { icon: "✓", text: t("ev.verifyPassed"), tone: "good" }
+        : { icon: "⚑", text: t("ev.verifyFound", { what: list(p.issues?.length ? [...new Set<string>(p.issues)].map((i) => label("issue", i)) : p.gaps) }), tone: "warn" };
     case "report_repaired":
-      return { icon: "✎", text: `Rewrote ${list(p.sections)}; kept ${p.kept?.length ?? 0} sections as they were`, tone: "accent" };
+      return { icon: "✎", text: t("ev.repaired", { sections: list(p.sections), n: p.kept?.length ?? 0 }), tone: "accent" };
     case "replan":
-      return { icon: "+", text: `Evidence gap: planned ${p.tasks?.length ?? 0} more sub-questions (round ${p.round})`, tone: "accent" };
+      return { icon: "+", text: t("ev.replan", { n: p.tasks?.length ?? 0, round: p.round }), tone: "accent" };
     case "delivery":
       return p.status === "delivered"
-        ? { icon: "➜", text: "Report delivered to the webhook", tone: "good" }
-        : { icon: "✕", text: `Delivery failed: ${p.error}`, tone: "bad" };
+        ? { icon: "➜", text: t("ev.delivered"), tone: "good" }
+        : { icon: "✕", text: t("ev.deliveryFailed", { error: p.error }), tone: "bad" };
     case "delivery_failed":
-      return { icon: "!", text: `Delivery attempt ${p.attempt} failed`, tone: "warn" };
+      return { icon: "!", text: t("ev.deliveryAttempt", { n: p.attempt }), tone: "warn" };
     case "control_requested":
-      return { icon: "⏺", text: `${p.action} requested` };
+      return { icon: "⏺", text: t("ev.controlRequested", { action: label("action", p.action) }) };
     case "control_applied":
-      return { icon: "⏹", text: `${p.action} applied`, tone: "warn" };
+      return { icon: "⏹", text: t("ev.controlApplied", { action: label("action", p.action) }), tone: "warn" };
     case "run_halted":
-      return { icon: "⏸", text: `Halted: ${p.reason}`, tone: "warn" };
+      return { icon: "⏸", text: t("ev.halted", { reason: p.reason }), tone: "warn" };
     case "lease_lost":
     case "run_abandoned":
-      return { icon: "⇄", text: `Worker pid ${pid(p.owner)} lost its lease and stopped`, tone: "accent" };
+      return { icon: "⇄", text: t("ev.leaseLost", { pid: pid(p.owner) }), tone: "accent" };
     case "run_interrupted":
-      return { icon: "✕", text: `Worker interrupted at ${p.stage}`, tone: "bad" };
+      return { icon: "✕", text: t("ev.interrupted", { stage: label("stage", p.stage) }), tone: "bad" };
     case "worker_error":
-      return { icon: "!", text: `Worker error: ${p.error}`, tone: "bad" };
+      return { icon: "!", text: t("ev.workerError", { error: p.error }), tone: "bad" };
     case "run_finished":
       return {
         icon: "■",
-        text: `Finished: ${p.status}${p.usage ? ` · ${Math.round(p.usage.tokens).toLocaleString()} tokens · ${p.usage.seconds}s` : ""}`,
+        text: p.usage
+          ? t("ev.finishedUsage", {
+              status: label("status", p.status),
+              tokens: Math.round(p.usage.tokens).toLocaleString(),
+              seconds: p.usage.seconds,
+            })
+          : t("ev.finished", { status: label("status", p.status) }),
         tone: p.status === "done" ? "good" : "bad",
       };
     default:
@@ -90,7 +103,7 @@ export function Timeline({ events }: { events: EventRecord[] }) {
     if (stick.current && box.current) box.current.scrollTop = box.current.scrollHeight;
   }, [events.length]);
 
-  if (events.length === 0) return <div className="empty">Waiting for events…</div>;
+  if (events.length === 0) return <div className="empty">{t("waitingEvents")}</div>;
   const t0 = events[0].ts;
   let owner: string | undefined;
   const rows = events.map((e) => {

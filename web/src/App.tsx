@@ -3,6 +3,7 @@ import { source, type RunSummary } from "./api";
 import { NewRun } from "./components/NewRun";
 import { RunView } from "./components/RunView";
 import { StatusPill } from "./components/StatusPill";
+import { lang, langHref, t } from "./i18n";
 
 const REPO = "https://github.com/limengge426/deeptrace-research-agent";
 
@@ -49,26 +50,27 @@ export function App() {
           <span className="logo" aria-hidden>◎</span>
           <div>
             <div className="brand-name">DeepTrace</div>
-            <div className="brand-sub">traces every claim to its source</div>
+            <div className="brand-sub">{t("tagline")}</div>
           </div>
         </div>
         <button className="primary wide" onClick={() => open(null)}>
-          {source.demo ? "About this demo" : "+ New research"}
+          {source.demo ? t("aboutDemo") : t("newResearch")}
         </button>
-        <div className="runs-label">{source.demo ? "Recorded runs" : "Runs"}</div>
+        <div className="runs-label">{source.demo ? t("recordedRuns") : t("runs")}</div>
         <nav className="runs">
-          {error && <div className="muted small">Cannot reach the API: {error}</div>}
+          {error && <div className="muted small">{t("apiError", { error })}</div>}
           {runs.map((r) => (
             <button key={r.id} className={`run-item ${r.id === selected ? "active" : ""}`} onClick={() => open(r.id)}>
               <span className="run-q">{r.question}</span>
               <StatusPill status={r.status} small />
             </button>
           ))}
-          {!error && runs.length === 0 && <div className="muted small">No runs yet.</div>}
+          {!error && runs.length === 0 && <div className="muted small">{t("noRuns")}</div>}
         </nav>
         <footer className="sidebar-foot">
           <a href={REPO} target="_blank" rel="noreferrer">GitHub</a>
-          {!source.demo && <a href="/docs" target="_blank" rel="noreferrer">API docs</a>}
+          {!source.demo && <a href="/docs" target="_blank" rel="noreferrer">{t("apiDocs")}</a>}
+          <a href={langHref(lang === "zh" ? "en" : "zh")} className="lang-switch">{t("switchLang")}</a>
         </footer>
       </aside>
       <main className="main">

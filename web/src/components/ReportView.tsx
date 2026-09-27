@@ -1,12 +1,14 @@
 import { Fragment, useMemo, useState, type ReactNode } from "react";
 import type { Evidence, Label, RunState, Sentence } from "../api";
+import { label, t } from "../i18n";
 
-const LABEL_TEXT: Record<Label, string> = {
-  supported: "Supported by its source",
-  partial: "Goes slightly beyond its source",
-  unsupported: "Not supported by its source",
-  contradicted: "Contradicted by its source",
-};
+const verdictText = (l: Label) => label("label", l);
+
+/** Who labelled the sentences, e.g. "independent gpt-4o grader". */
+function sourceText(source: string): string {
+  const m = source.match(/^independent (\S+) grader$/);
+  return m ? t("grader", { model: m[1] }) : source;
+}
 
 /** Minimal inline Markdown: **bold** and *italic*. */
 function inline(text: string): ReactNode[] {
@@ -20,7 +22,7 @@ function inline(text: string): ReactNode[] {
 function SentenceView({ s, onCite }: { s: Sentence; onCite: (id: string) => void }) {
   const parts = s.text.split(/(\[E\d+\])/g);
   return (
-    <span className={`sent ${s.label ?? "unjudged"}`} title={s.label ? `${LABEL_TEXT[s.label]}${s.reason ? `: ${s.reason}` : ""}` : undefined}>
+    <span className={`sent ${s.label ?? "unjudged"}`} title={s.label ? `${verdictText(s.label)}${s.reason ? `: ${s.reason}` : ""}` : undefined}>
       {parts.map((part, i) => {
         const m = part.match(/^\[(E\d+)\]$/);
         return m ? (
@@ -55,27 +57,25 @@ export function ReportView({ state }: { state: RunState }) {
             <div className="legend">
               {(Object.keys(counts) as Label[]).map((l) => (
                 <span key={l} className={`legend-item ${l}`}>
-                  <span className="swatch" /> {counts[l]} {l}
+                  <span className="swatch" /> {counts[l]} {label("legend", l)}
                 </span>
               ))}
               <span className="legend-item unjudged">
-                <span className="swatch" /> uncited / not checked
+                <span className="swatch" /> {t("legendUnjudged")}
               </span>
             </div>
             <div className="muted small">
               {state.verdict_source
-                ? <>Sentence colours: every cited sentence as labelled by the {state.verdict_source} against the full text of its sources.</>
-                : <>Every cited sentence was checked against the full text of its sources.</>}
-              {first !== undefined && last !== undefined && state.repairs > 0 && (
-                <> The in-loop judge rated {Math.round(first * 100)}% of claims fully supported on the first draft and{" "}
-                {Math.round(last * 100)}% after {state.repairs} targeted repair{state.repairs > 1 ? "s" : ""}.</>
-              )}
+                ? t("colourSource", { source: sourceText(state.verdict_source) })
+                : t("colourDefault")}
+              {first !== undefined && last !== undefined && state.repairs > 0 &&
+                t("inLoop", { first: Math.round(first * 100), last: Math.round(last * 100), n: state.repairs })}
             </div>
           </div>
         )}
         {report.sections.map((section) => (
           <section key={section.heading}>
-            <h3>{section.heading}{section.synthesis && <span className="tag">synthesis</span>}</h3>
+            <h3>{section.heading}{section.synthesis && <span className="tag">{t("synthesis")}</span>}</h3>
             {section.paragraphs.map((para, i) => (
               <p key={i}>{para.map((s, j) => <SentenceView key={j} s={s} onCite={setOpen} />)}</p>
             ))}
@@ -83,12 +83,12 @@ export function ReportView({ state }: { state: RunState }) {
         ))}
         {state.limitations.length > 0 && (
           <section className="limitations">
-            <h3>Limitations</h3>
+            <h3>{t("limitations")}</h3>
             <ul>{state.limitations.map((l, i) => <li key={i}>{l}</li>)}</ul>
           </section>
         )}
         <section className="sources">
-          <h3>Sources</h3>
+          <h3>{t("sourcesTitle")}</h3>
           <ol>
             {cited.map((id) => {
               const e = evidence.get(id)!;
@@ -116,18 +116,18 @@ function EvidenceDrawer({ e, sentences, onClose }: { e: Evidence; sentences: Sen
     <aside className="drawer">
       <div className="drawer-head">
         <span className="cite static">{e.id}</span>
-        <button className="ghost" onClick={onClose} aria-label="Close">✕</button>
+        <button className="ghost" onClick={onClose} aria-label={t("close")}>✕</button>
       </div>
       <h4>{e.title}</h4>
       <div className="muted small">
-        {link ? <a href={e.url} target="_blank" rel="noreferrer">{e.url}</a> : e.url} · found by task {e.task}
+        {link ? <a href={e.url} target="_blank" rel="noreferrer">{e.url}</a> : e.url} · {t("foundBy", { task: e.task })}
       </div>
       <div className="evidence-text">{e.content}</div>
-      <div className="drawer-sub">Cited by {sentences.length} sentence{sentences.length === 1 ? "" : "s"}</div>
+      <div className="drawer-sub">{t("citedBy", { n: sentences.length })}</div>
       {sentences.map((s, i) => (
         <div key={i} className={`cited-by ${s.label ?? "unjudged"}`}>
           <div>{s.text.replace(/\[E\d+\]/g, "").trim()}</div>
-          {s.label && <div className="muted small">{LABEL_TEXT[s.label]}{s.reason ? `: ${s.reason}` : ""}</div>}
+          {s.label && <div className="muted small">{verdictText(s.label)}{s.reason ? `: ${s.reason}` : ""}</div>}
         </div>
       ))}
     </aside>

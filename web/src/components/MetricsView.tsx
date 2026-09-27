@@ -1,11 +1,12 @@
 import type { RunState } from "../api";
+import { label, t } from "../i18n";
 
 function Bars({ title, rows, unit }: { title: string; rows: Array<[string, number]>; unit: string }) {
   const max = Math.max(1, ...rows.map(([, v]) => v));
   return (
     <section className="panel">
       <div className="panel-title">{title}</div>
-      {rows.length === 0 && <div className="empty">No data yet.</div>}
+      {rows.length === 0 && <div className="empty">{t("noData")}</div>}
       {rows.map(([name, value]) => (
         <div key={name} className="bar-row">
           <span className="bar-name">{name}</span>
@@ -27,20 +28,20 @@ export function MetricsView({ state }: { state: RunState }) {
   return (
     <div className="metrics">
       <div className="stat-row">
-        <Stat label="LLM tokens" value={(usage.tokens ?? 0).toLocaleString()} />
-        <Stat label="LLM calls" value={String(usage.llm_calls ?? 0)} />
-        <Stat label="Tool calls" value={String(usage.tool_calls ?? 0)} />
-        <Stat label="Wall time" value={`${Math.round(usage.seconds ?? 0)} s`} />
-        <Stat label="Evidence" value={String(state.evidence.length)} />
-        <Stat label="Repairs / replans" value={`${state.repairs} / ${state.replans}`} />
-        {hit !== null && hit !== undefined && <Stat label="Tool cache hits" value={`${Math.round(hit * 100)}%`} />}
+        <Stat label={t("statTokens")} value={(usage.tokens ?? 0).toLocaleString()} />
+        <Stat label={t("statCalls")} value={String(usage.llm_calls ?? 0)} />
+        <Stat label={t("statTools")} value={String(usage.tool_calls ?? 0)} />
+        <Stat label={t("statWall")} value={`${Math.round(usage.seconds ?? 0)} s`} />
+        <Stat label={t("statEvidence")} value={String(state.evidence.length)} />
+        <Stat label={t("statRepairs")} value={`${state.repairs} / ${state.replans}`} />
+        {hit !== null && hit !== undefined && <Stat label={t("statCache")} value={`${Math.round(hit * 100)}%`} />}
       </div>
       <div className="metrics-grid">
-        <Bars title="Tokens by LLM purpose" rows={sorted(m.llm, "tokens")} unit="tok" />
-        <Bars title="Time by stage" rows={sorted(m.stages, "seconds")} unit="s" />
-        <Bars title="Evidence placed into prompts" rows={sorted(m.context, "evidence_chars")} unit="chars" />
-        <Bars title="Tool calls" rows={Object.entries(m.tools ?? {}).flatMap(([k, v]) =>
-          [[`${k}`, v.calls ?? 0], [`${k} (cached)`, v.cache_hits ?? 0]] as Array<[string, number]>)} unit="" />
+        <Bars title={t("barTokens")} rows={sorted(m.llm, "tokens")} unit={t("unitTok")} />
+        <Bars title={t("barStages")} rows={sorted(m.stages, "seconds").map(([k, v]) => [label("stage", k), v])} unit="s" />
+        <Bars title={t("barEvidence")} rows={sorted(m.context, "evidence_chars")} unit={t("unitChars")} />
+        <Bars title={t("barTools")} rows={Object.entries(m.tools ?? {}).flatMap(([k, v]) =>
+          [[`${k}`, v.calls ?? 0], [`${k} ${t("cached")}`, v.cache_hits ?? 0]] as Array<[string, number]>)} unit="" />
       </div>
     </div>
   );

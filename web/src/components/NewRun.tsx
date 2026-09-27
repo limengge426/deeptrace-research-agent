@@ -1,11 +1,8 @@
 import { useState } from "react";
 import { source, type RunSummary } from "../api";
+import { t } from "../i18n";
 
-const EXAMPLES = [
-  "Are heat pumps worth it in cold climates?",
-  "How did the transformer architecture enable large language models, and what are their limits?",
-  "What caused the Great Depression, and how did it shape the Bretton Woods system?",
-];
+const EXAMPLES = [t("ex1"), t("ex2"), t("ex3")];
 
 export function NewRun({ runs, onCreated }: { runs: RunSummary[]; onCreated: (id: string) => void }) {
   const [question, setQuestion] = useState("");
@@ -16,23 +13,18 @@ export function NewRun({ runs, onCreated }: { runs: RunSummary[]; onCreated: (id
   if (source.demo) {
     return (
       <div className="page narrow">
-        <h1>DeepTrace demo</h1>
-        <p className="lead">
-          These are <strong>recorded runs of the real agent</strong> (<code>gpt-4o-mini</code> over a fixed set of
-          Wikipedia articles), replayed in your browser. Watch the planner build a task graph, parallel research
-          fill it in, and the verifier check every cited sentence against its source.
-        </p>
+        <h1>{t("demoTitle")}</h1>
+        <p className="lead">{t("demoLead")}</p>
+        {t("demoContentNote") && <p className="notice">{t("demoContentNote")}</p>}
         <div className="cards">
           {runs.map((r) => (
             <button key={r.id} className="card link" onClick={() => onCreated(r.id)}>
               <div className="card-title">{r.question}</div>
-              <div className="muted small">Replay this run →</div>
+              <div className="muted small">{t("replay")}</div>
             </button>
           ))}
         </div>
-        <p className="muted small">
-          To run your own questions, start the API locally with your model key (see the README).
-        </p>
+        <p className="muted small">{t("demoFoot")}</p>
       </div>
     );
   }
@@ -52,11 +44,8 @@ export function NewRun({ runs, onCreated }: { runs: RunSummary[]; onCreated: (id
 
   return (
     <div className="page narrow">
-      <h1>What should DeepTrace research?</h1>
-      <p className="lead">
-        It plans sub-questions, researches them in parallel, writes a cited report and checks every cited sentence
-        against its source before finishing.
-      </p>
+      <h1>{t("askTitle")}</h1>
+      <p className="lead">{t("askLead")}</p>
       <form
         className="composer"
         onSubmit={(e) => {
@@ -67,7 +56,7 @@ export function NewRun({ runs, onCreated }: { runs: RunSummary[]; onCreated: (id
         <textarea
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Ask a research question…"
+          placeholder={t("askPlaceholder")}
           rows={3}
           onKeyDown={(e) => {
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit(question);
@@ -76,16 +65,16 @@ export function NewRun({ runs, onCreated }: { runs: RunSummary[]; onCreated: (id
         <div className="composer-row">
           <label className="check">
             <input type="checkbox" checked={approvePlan} onChange={(e) => setApprovePlan(e.target.checked)} />
-            Let me review the plan before research starts
+            {t("reviewPlan")}
           </label>
           <button className="primary" disabled={busy || question.trim().length < 3}>
-            {busy ? "Starting…" : "Start research"}
+            {busy ? t("starting") : t("start")}
           </button>
         </div>
         {error && <div className="error">{error}</div>}
       </form>
       <div className="examples">
-        <span className="muted small">Try:</span>
+        <span className="muted small">{t("tryLabel")}</span>
         {EXAMPLES.map((q) => (
           <button key={q} className="chip" onClick={() => setQuestion(q)}>
             {q}

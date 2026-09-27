@@ -7,6 +7,7 @@ import { PlanEditor } from "./PlanEditor";
 import { ReportView } from "./ReportView";
 import { StatusPill } from "./StatusPill";
 import { Timeline } from "./Timeline";
+import { label, t } from "../i18n";
 
 type Tab = "live" | "report" | "metrics";
 const ACTIVE = ["plan", "execute", "report", "verify", "deliver"];
@@ -71,7 +72,7 @@ export function RunView({ id }: { id: string }) {
     <div className="page">
       <header className="run-head">
         <div>
-          <div className="muted small">Research question</div>
+          <div className="muted small">{t("researchQuestion")}</div>
           <h1 className="question">{state?.question ?? "…"}</h1>
         </div>
         <div className="run-actions">
@@ -79,16 +80,16 @@ export function RunView({ id }: { id: string }) {
           {!source.demo && state && (
             <>
               {ACTIVE.includes(liveStatus) && (
-                <button disabled={busy} onClick={() => act(() => source.control!(id, "pause"))}>Pause</button>
+                <button disabled={busy} onClick={() => act(() => source.control!(id, "pause"))}>{t("pause")}</button>
               )}
               {["paused", "halted"].includes(liveStatus) && (
                 <button className="primary" disabled={busy} onClick={() => act(() => source.control!(id, "resume"))}>
-                  Resume
+                  {t("resume")}
                 </button>
               )}
               {!["done", "failed", "cancelled"].includes(liveStatus) && (
                 <button className="danger" disabled={busy} onClick={() => act(() => source.control!(id, "cancel"))}>
-                  Cancel
+                  {t("cancel")}
                 </button>
               )}
             </>
@@ -109,12 +110,12 @@ export function RunView({ id }: { id: string }) {
       )}
 
       <nav className="tabs">
-        <button className={tab === "live" ? "active" : ""} onClick={() => pick("live")}>Live</button>
+        <button className={tab === "live" ? "active" : ""} onClick={() => pick("live")}>{t("tabLive")}</button>
         <button className={tab === "report" ? "active" : ""} onClick={() => pick("report")} disabled={!showReport}>
-          Report {showReport && state?.report ? "" : "·"}
+          {t("tabReport")} {showReport && state?.report ? "" : "·"}
         </button>
         <button className={tab === "metrics" ? "active" : ""} onClick={() => pick("metrics")} disabled={!state}>
-          Metrics
+          {t("tabMetrics")}
         </button>
       </nav>
 
@@ -122,13 +123,13 @@ export function RunView({ id }: { id: string }) {
         <div className="live-grid">
           <section className="panel">
             <div className="panel-title">
-              Task graph <span className="muted small">independent tasks run in parallel</span>
+              {t("taskGraph")} <span className="muted small">{t("taskGraphHint")}</span>
             </div>
             <DagView tasks={tasks} />
           </section>
           <section className="panel">
             <div className="panel-title">
-              Event log <span className="muted small">{events.length} events</span>
+              {t("eventLog")} <span className="muted small">{t("eventCount", { n: events.length })}</span>
             </div>
             <Timeline events={events} />
           </section>
@@ -151,7 +152,7 @@ function StageBar({ current, finished, visited }: { current: string; finished: s
         return (
           <li key={s} className={state}>
             <span className="dot" />
-            {s}
+            {label("stage", s)}
           </li>
         );
       })}
