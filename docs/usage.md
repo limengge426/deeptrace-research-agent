@@ -1,11 +1,11 @@
 # Usage
 
-[← Back to README](../README.md)
+[← Back to README](../README.md) · [中文](zh/usage.md)
 
 ## 🚀 Quick start
 
 ```bash
-git clone https://github.com/limengge426/deeptrace_agent.git
+git clone https://github.com/limengge426/deeptrace-research-agent.git
 cd deeptrace-research-agent
 pip install -e ".[dev]"
 ```
@@ -90,6 +90,8 @@ deeptrace db upgrade --db postgresql+psycopg://user:pass@host/deeptrace   # Alem
 cd web && npm install && npm run build && cd ..     # builds into the Python package
 deeptrace serve --corpus examples/corpus             # open http://127.0.0.1:8000
 ```
+
+The interface is in English; add `?lang=zh` to the URL (or use the link at the bottom of the sidebar) for Chinese.
 
 | View | What it shows |
 |---|---|

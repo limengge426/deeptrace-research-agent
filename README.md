@@ -4,6 +4,8 @@
 
 **A fault-tolerant deep research agent that traces every claim to its source.**
 
+English · [简体中文](README.zh-CN.md)
+
 [![CI](https://github.com/limengge426/deeptrace-research-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/limengge426/deeptrace-research-agent/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.10+-3776AB?logo=python&logoColor=white)
 ![LangGraph](https://img.shields.io/badge/agent-LangGraph-1C3C3C)
@@ -61,7 +63,7 @@ More: [web search, hybrid retrieval, the LangGraph agent, plan approval, the HTT
 
 ## Acknowledgements
 
-The overall design, with a resumable harness, an evidence ledger and a completion check that gates the final report, was inspired by the architecture described in [SichengLong26/deepresearch_agent_harness](https://github.com/SichengLong26/deepresearch_agent_harness). DeepTrace is an independent, from-scratch implementation with a different scope: a library, CLI and HTTP API, with no web UI, knowledge graph or skill system. Its claim-level faithfulness judge targets a gap the original's own documentation names: its claim-support metric is a deterministic proxy, not a semantic check.
+The overall design, with a resumable harness, an evidence ledger and a completion check that gates the final report, was inspired by the architecture described in [SichengLong26/deepresearch_agent_harness](https://github.com/SichengLong26/deepresearch_agent_harness). DeepTrace is an independent, from-scratch implementation; no code was copied. Its claim-level faithfulness judge targets a gap the original's own documentation names: its claim-support metric is a deterministic proxy, not a semantic check.
 
 ## License
 

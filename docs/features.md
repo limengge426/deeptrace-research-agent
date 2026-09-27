@@ -1,6 +1,6 @@
 # Features
 
-[← Back to README](../README.md)
+[← Back to README](../README.md) · [中文](zh/features.md)
 
 ## ✨ Highlights
 
@@ -16,7 +16,7 @@
 | 🔒 **Leased multi-worker execution** | Workers claim runs through heartbeat-renewed leases. A dead worker's runs are taken over when its lease expires. Every checkpoint carries a fencing token, so a stalled worker cannot overwrite the new owner's progress. |
 | 🙋 **Human control** | Cancel or pause a run (applied at the next step boundary), resume it later, require **plan approval** (approve as proposed or submit an edited DAG), and reconcile interrupted side effects. |
 | 📈 **Observability** | Tokens, calls, latency and errors per LLM purpose; calls and cache hits per tool; time per stage. Available per run and aggregated (P50/P95, faithfulness), also in Prometheus format. Live progress over Server-Sent Events. |
-| 🖥️ **Web console** | React + TypeScript console: watch the task graph fill in live, review and edit the plan before research starts, and read reports where **every cited sentence is coloured by how well its source supports it**. Click any citation to see the source text and every sentence that relies on it. |
+| 🖥️ **Web console** | React + TypeScript console: watch the task graph fill in live, review and edit the plan before research starts, and read reports where **every cited sentence is coloured by how well its source supports it**. Click any citation to see the source text and every sentence that relies on it. Available in English and Chinese. |
 | 🌐 **HTTP API & Docker** | FastAPI service; `docker compose up` starts the API plus two worker replicas, with the console served at `/`. |
 | 🤖 **Agentic research (LangGraph)** | Optionally, each sub-question is researched by a LangGraph ReAct agent that decides what to search, refines queries and stops when it has enough evidence. Its tool calls still go through the crash-safe tool runner, its sources still enter the ledger, and its tokens are metered by a LangChain callback into the same budget. |
 | 🔎 **Hybrid retrieval: BM25 + vectors + knowledge graph** | Sentence-transformer embeddings in a Faiss index, and a Neo4j knowledge graph (entities, relations, entity-linked expansion), fused with BM25 by Reciprocal Rank Fusion. [Evaluated on hand-labelled queries](evaluation.md#-retrieval). |
