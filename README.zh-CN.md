@@ -62,9 +62,6 @@ docker compose up --build                    # API + 两个 worker，可选 Post
 | API / 界面 | FastAPI + Server-Sent Events、React + TypeScript |
 | 运维 | Docker Compose、Prometheus 指标、GitHub Actions（SQLite、Postgres、Neo4j 任务）、GitHub Pages |
 
-## 致谢
-
-整体设计（可恢复的执行框架、证据账本、在最终报告前把关的完成度检查）受到 [SichengLong26/deepresearch_agent_harness](https://github.com/SichengLong26/deepresearch_agent_harness) 所描述架构的启发。DeepTrace 是从零开始的独立实现，没有复制其代码。其中的论断级忠实度评审，针对的是原项目文档自己指出的不足：它的论断支持度指标是一个确定性的近似，而不是语义层面的检查。
 
 ## 许可证
 
