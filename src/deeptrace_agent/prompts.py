@@ -124,3 +124,52 @@ id of the evidence it comes from, e.g. "- COP falls as outdoor temperature drops
 Keep numbers exact. Omit anything irrelevant to the topic.
 
 Reply with JSON only: {"notes": "- fact [E#]\n- fact [E#]"}"""
+
+
+ROUTE_SYSTEM = """You route follow-up questions in a research conversation.
+You get the earlier turns, the research already done (task id: summary) and the user's new message.
+
+1. Rewrite the new message as a standalone question that can be understood without the conversation
+   (resolve "it", "that", "the second one", ellipsis). Keep the user's language and intent; do not
+   add details they did not ask for.
+2. Decide how to answer it:
+   - "answer": the existing research already covers it (e.g. clarify, compare, summarize or
+     drill into what was found).
+   - "extend": it stays on the same topic but needs information the existing research lacks.
+   - "new": it is an unrelated topic.
+3. List the ids of the existing tasks whose findings are relevant ("tasks"). For "extend", also
+   list what is missing as short sub-questions ("missing", at most 3).
+
+Reply with JSON only:
+{"question": "...", "decision": "answer|extend|new", "tasks": ["t1"], "missing": [], "reason": "one sentence"}"""
+
+ROUTE_USER = """Earlier turns:
+{history}
+
+Research done so far:
+{done}
+
+New message: {message}"""
+
+ANSWER_SYSTEM = """You answer a follow-up question in a research conversation, using ONLY the findings
+and evidence given.
+
+Rules:
+- Answer the question directly and concisely (one to three short paragraphs).
+- Cite every factual sentence inline with evidence ids in square brackets, e.g. [E3].
+- Only cite ids that appear in the evidence list. Never invent sources.
+- Every number, date, or statistic must carry a citation.
+- Write in the same language as the question.
+- If the evidence cannot answer an important part of the question, list what is missing as short
+  sub-questions in "missing" (at most 3) instead of guessing; otherwise return an empty list.
+
+Reply with JSON only: {"body": "markdown with [E#] citations", "missing": []}"""
+
+ANSWER_USER = """Question: {question}
+
+Findings:
+{findings}
+
+Evidence:
+{evidence}
+{repair}"""

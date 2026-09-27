@@ -61,6 +61,7 @@ async def replan(
     *,
     round_: int,
     max_tasks: int = 3,
+    prefix: str | None = None,
 ) -> list[Task]:
     """Plan follow-up tasks for evidence gaps; they may depend on already-finished tasks."""
     system = prompts.PLANNER_SYSTEM.format(
@@ -72,6 +73,6 @@ async def replan(
         question=question,
         done=done,
         gaps="\n".join(f"- {g}" for g in gaps),
-        prefix=f"r{round_}_",
+        prefix=prefix or f"r{round_}_",
     )
     return await _plan(llm, system, user, existing=plan, round_=round_, max_tasks=max_tasks)

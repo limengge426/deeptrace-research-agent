@@ -35,6 +35,8 @@ PURPOSES = [
     ("You condense research evidence", "digest"),
     ("You review research reports", "critic"),
     ("You check whether research claims", "judge"),
+    ("You route follow-up questions", "route"),
+    ("You answer a follow-up question", "answer"),
 ]
 
 app = FastAPI()

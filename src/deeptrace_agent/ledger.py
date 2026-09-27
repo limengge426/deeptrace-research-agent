@@ -43,6 +43,10 @@ class EvidenceLedger:
         self._by_fingerprint[fp] = ev.id
         return ev
 
+    def clear(self) -> None:
+        self._items.clear()
+        self._by_fingerprint.clear()
+
     def __contains__(self, evidence_id: object) -> bool:
         return evidence_id in self._items
 

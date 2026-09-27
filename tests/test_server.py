@@ -112,3 +112,23 @@ def test_root_serves_the_console_or_a_build_hint(tmp_path):
             assert '<div id="root">' in page.text
         else:
             assert "npm run build" in page.text
+
+
+def test_followup_through_the_api_continues_the_thread(tmp_path):
+    with _client(tmp_path) as client:
+        first = client.post("/runs", json={"question": "Are heat pumps worth it?"}).json()["id"]
+        _wait(client, first, {"done"})
+
+        created = client.post(f"/runs/{first}/followups", json={"question": "What about the second point?"})
+        assert created.status_code == 202
+        body = created.json()
+        assert body["thread_id"] == first and body["mode"] == "followup" and body["status"] == "route"
+
+        _wait(client, body["id"], {"done"})
+        state = client.get(f"/runs/{body['id']}/state").json()
+        assert state["route"]["decision"] == "answer" and state["report"]["sections"][0]["heading"] == "Answer"
+        assert [t["id"] for t in client.get(f"/threads/{first}").json()][-1] == body["id"]
+        assert client.get("/threads/nope").status_code == 404
+        assert client.post(f"/runs/{body['id']}/followups", json={"question": ""}).status_code == 422
+        assert client.post(f"/runs/{first}/followups", json={"question": "Again?"}).status_code == 202
+        assert client.post(f"/runs/{first}/followups", json={"question": "And again?"}).status_code == 409

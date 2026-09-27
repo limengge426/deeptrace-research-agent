@@ -283,6 +283,50 @@ async def repair_sections(
     return Report(report.title, sections), targets
 
 
+# -- follow-up answers -------------------------------------------------------
+
+
+async def write_answer(
+    llm: LLM,
+    question: str,
+    tasks: list[str],
+    plan: Plan,
+    findings: dict[str, Finding],
+    ledger: EvidenceLedger,
+    *,
+    budget: ContextBudget | None = None,
+    previous: str | None = None,
+    problems: list[str] | None = None,
+) -> tuple[Report, list[str]]:
+    """Write a short cited answer from the evidence of ``tasks`` only.
+
+    Returns the answer (a one-section report, so the verifier and the claim judge apply
+    unchanged) and what the model says is missing to answer it fully.
+    """
+    budget = budget or ContextBudget()
+    tasks = [t for t in tasks if t in findings] or [t for t, f in findings.items() if f.evidence_ids]
+    evidence, condensed = await _evidence_block(llm, question, evidence_for(tasks, findings), ledger, budget)
+    _record_context(llm, "answer", evidence)
+    repair = ""
+    if previous is not None and problems:
+        repair = prompts.SECTION_REPAIR.format(previous=previous, problems="\n".join(f"- {p}" for p in problems))
+    found = "\n".join(f"- {plan.get(t).question}\n  {findings[t].summary}" for t in tasks)
+    user = prompts.ANSWER_USER.format(
+        question=question, findings=found or "(none)",
+        evidence=("(condensed notes)\n" if condensed else "") + evidence, repair=repair,
+    )
+    reply = await llm.complete(prompts.ANSWER_SYSTEM, user, purpose="answer", json_mode=True)
+    data = parse_json_object(reply.text)
+    body = str(data.get("body", "")).strip()
+    if not body:
+        raise LLMFormatError("the answer came back empty")
+    missing = [str(m).strip() for m in data.get("missing") or [] if str(m).strip()][:3]
+    return Report(question, [Section(ANSWER_HEADING, body)]), missing
+
+
+ANSWER_HEADING = "Answer"
+
+
 def strip_unknown_citations(report: Report, ledger: EvidenceLedger) -> Report:
     """Last-resort cleanup: drop citations that do not resolve to ledger entries."""
 

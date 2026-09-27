@@ -38,6 +38,7 @@ class RunRecord:
     status: str
     created_at: float
     updated_at: float
+    thread_id: str | None = None
 
 
 class LeaseLost(RuntimeError):
@@ -132,11 +133,14 @@ class RunStore:
     # -- runs -------------------------------------------------------------
 
     def create_run(self, state: RunState) -> str:
+        """Insert a new run; it starts its own thread unless ``state.thread_id`` is set."""
         run_id = uuid.uuid4().hex[:10]
+        state.thread_id = state.thread_id or run_id
         now = time.time()
         with self.engine.begin() as c:
-            c.execute(insert(runs).values(id=run_id, question=state.question, status=state.stage,
-                                          created_at=now, updated_at=now, state=json.dumps(state.to_dict())))
+            c.execute(insert(runs).values(id=run_id, question=state.question, status=state.status,
+                                          created_at=now, updated_at=now, state=json.dumps(state.to_dict()),
+                                          thread_id=state.thread_id))
         return run_id
 
     def checkpoint(self, run_id: str, state: RunState, *, status: str, lease: Lease | None = None) -> None:
@@ -173,9 +177,27 @@ class RunStore:
 
     def runs(self, limit: int = 20) -> list[RunRecord]:
         with self.engine.connect() as c:
-            rows = c.execute(select(runs.c.id, runs.c.question, runs.c.status, runs.c.created_at,
-                                    runs.c.updated_at).order_by(runs.c.created_at.desc()).limit(limit)).all()
+            rows = c.execute(select(*self._record_columns()).order_by(runs.c.created_at.desc()).limit(limit)).all()
         return [RunRecord(*row) for row in rows]
+
+    def thread(self, thread_id: str) -> list[RunRecord]:
+        """The runs of one conversation, oldest first."""
+        with self.engine.connect() as c:
+            rows = c.execute(select(*self._record_columns()).where(runs.c.thread_id == thread_id)
+                             .order_by(runs.c.created_at, runs.c.id)).all()
+        return [RunRecord(*row) for row in rows]
+
+    def latest_turn(self, run_id: str) -> str:
+        """The newest run in ``run_id``'s thread (``run_id`` itself for a single-turn thread)."""
+        with self.engine.connect() as c:
+            thread_id = c.execute(select(runs.c.thread_id).where(runs.c.id == run_id)).scalar()
+        if thread_id is None:
+            raise KeyError(f"no run with id {run_id!r}")
+        return self.thread(thread_id)[-1].id
+
+    @staticmethod
+    def _record_columns():
+        return (runs.c.id, runs.c.question, runs.c.status, runs.c.created_at, runs.c.updated_at, runs.c.thread_id)
 
     def status(self, run_id: str) -> str:
         with self.engine.connect() as c:

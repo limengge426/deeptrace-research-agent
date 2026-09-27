@@ -14,6 +14,8 @@ runs = Table(
     Column("created_at", Float, nullable=False),
     Column("updated_at", Float, nullable=False),
     Column("state", Text, nullable=False),  # RunState as JSON
+    Column("thread_id", String(32)),  # first run of the conversation this run belongs to
+    Index("runs_by_thread", "thread_id", "created_at"),
 )
 
 events = Table(

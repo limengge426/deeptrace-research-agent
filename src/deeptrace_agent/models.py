@@ -133,7 +133,7 @@ class Issue:
 @dataclass
 class RunState:
     question: str
-    stage: str = "plan"  # plan | execute | report | verify | done | failed | cancelled
+    stage: str = "plan"  # plan | route | execute | report | verify | deliver | done | failed | cancelled
     plan: Plan = field(default_factory=Plan)
     findings: dict[str, Finding] = field(default_factory=dict)
     evidence: list[Evidence] = field(default_factory=list)
@@ -152,6 +152,15 @@ class RunState:
     verdicts: list[dict] = field(default_factory=list)  # claim-level verdicts on the latest judged draft
     deliver_to: str | None = None  # webhook URL that receives the finished report
     delivery: dict | None = None  # outcome of the delivery attempt
+    # Conversation: a follow-up is a run of its own that inherits the previous turn's plan,
+    # findings and evidence ledger, so its answer can cite the same evidence ids.
+    thread_id: str | None = None  # id of the thread's first run
+    parent_id: str | None = None  # the run this one follows up on
+    turn: int = 1
+    mode: str = "report"  # "report": a full research report; "followup": a short answer
+    history: list[dict] = field(default_factory=list)  # earlier turns: [{"question", "answer"}]
+    route: dict | None = None  # {"decision", "question", "tasks", "missing", "reason"}
+    focus: list[str] = field(default_factory=list)  # task ids whose evidence the answer may use
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -180,7 +189,19 @@ class RunState:
             verdicts=list(data.get("verdicts", [])),
             deliver_to=data.get("deliver_to"),
             delivery=data.get("delivery"),
+            thread_id=data.get("thread_id"),
+            parent_id=data.get("parent_id"),
+            turn=int(data.get("turn", 1)),
+            mode=data.get("mode", "report"),
+            history=list(data.get("history", [])),
+            route=data.get("route"),
+            focus=list(data.get("focus", [])),
         )
+
+    @property
+    def research_question(self) -> str:
+        """The question to research: a follow-up rewritten as a standalone question, once routed."""
+        return (self.route or {}).get("question") or self.question
 
     @property
     def status(self) -> str:

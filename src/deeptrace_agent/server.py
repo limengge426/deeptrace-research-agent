@@ -36,6 +36,10 @@ class RunRequest(BaseModel):
     webhook_url: str | None = Field(None, pattern=r"^https?://", description="receives the finished report")
 
 
+class FollowupRequest(BaseModel):
+    question: str = Field(min_length=1, max_length=2000)
+
+
 class PlanTask(BaseModel):
     id: str
     question: str = Field(min_length=3)
@@ -69,6 +73,9 @@ class RunView(BaseModel):
     repairs: int
     usage: dict[str, float]
     delivery: dict | None = None
+    thread_id: str | None = None
+    turn: int = 1
+    mode: str = "report"
 
 
 def create_app(runtime: ResearchRuntime, *, embedded_worker: bool = True, poll_interval: float = 1.0) -> FastAPI:
@@ -105,6 +112,9 @@ def create_app(runtime: ResearchRuntime, *, embedded_worker: bool = True, poll_i
             repairs=state.repairs,
             usage=state.usage,
             delivery=state.delivery,
+            thread_id=state.thread_id,
+            turn=state.turn,
+            mode=state.mode,
         )
 
     @app.get("/health")
@@ -136,6 +146,24 @@ def create_app(runtime: ResearchRuntime, *, embedded_worker: bool = True, poll_i
     async def approve(run_id: str, body: PlanApproval | None = None) -> RunView:
         tasks = [t.model_dump() for t in body.tasks] if body and body.tasks is not None else None
         return act(run_id, lambda: runtime.approve_plan(run_id, tasks))
+
+    @app.post("/runs/{run_id}/followups", status_code=202)
+    async def followup(run_id: str, req: FollowupRequest) -> RunView:
+        """Ask a follow-up question on a finished run; it answers from the evidence gathered so far
+        and researches only what is missing."""
+        view(run_id)
+        try:
+            return view(runtime.create_followup(run_id, req.question))
+        except InvalidAction as exc:
+            raise HTTPException(409, str(exc)) from None
+
+    @app.get("/threads/{thread_id}")
+    async def get_thread(thread_id: str) -> list[dict]:
+        """The runs of one conversation, oldest first."""
+        turns = store.thread(thread_id)
+        if not turns:
+            raise HTTPException(404, f"no thread {thread_id}")
+        return [vars(r) for r in turns]
 
     @app.get("/runs")
     async def list_runs(limit: int = Query(20, ge=1, le=100)) -> list[dict]:

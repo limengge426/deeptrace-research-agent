@@ -110,6 +110,18 @@ def test_cli_run_show_and_list_against_example_corpus(tmp_path, monkeypatch, cap
     assert cli.main(["--db", db, "list"]) == 0
     assert run_id in capsys.readouterr().out
 
+    corpus = ["--corpus", str(EXAMPLE_CORPUS), "--out", out]
+    assert cli.main(["--db", db, "ask", run_id, "What about the second point?", *corpus]) == 0
+    printed = capsys.readouterr().out
+    assert "understood as: Standalone: What about the second point?" in printed
+    second = printed.split("\nrun ", 1)[1].split(":", 1)[0]
+    assert "## Answer" in (tmp_path / "reports" / f"{second}.md").read_text()
+    assert cli.main(["--db", db, "ask", run_id, "And the first?", *corpus]) == 0  # continues the latest turn
+    capsys.readouterr()
+    assert cli.main(["--db", db, "thread", run_id]) == 0
+    turns = capsys.readouterr().out.splitlines()
+    assert len(turns) == 3 and run_id in turns[0] and second in turns[1] and "answer" in turns[2]
+
 
 def test_env_prefers_deeptrace_names_and_falls_back_to_researchloop(monkeypatch):
     from deeptrace_agent.env import getenv

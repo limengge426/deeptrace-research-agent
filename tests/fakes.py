@@ -76,6 +76,18 @@ def judge_all(user: str, label: str) -> dict:
     return {"verdicts": [{"id": int(i), "label": label, "reason": "scripted"} for i in ids]}
 
 
+def route_answer(system: str, user: str) -> dict:
+    tasks = re.findall(r"^- (\S+?): ", user.split("Research done so far:", 1)[1], re.MULTILINE)
+    message = user.rsplit("New message: ", 1)[1].strip()
+    return {"question": f"Standalone: {message}", "decision": "answer", "tasks": tasks, "missing": [], "reason": "covered"}
+
+
+def answer(system: str, user: str) -> dict:
+    evidence = user.split("Evidence:", 1)[1].split("Your previous draft", 1)[0]
+    ids = list(dict.fromkeys(re.findall(r"\[(E\d+)\]", evidence)))
+    return {"body": " ".join(f"An answer claim [{e}]." for e in ids), "missing": []}
+
+
 def plan_or_replan(system: str, user: str) -> dict:
     return replan(system, user) if "verifier found these gaps" in user else plan_three(system, user)
 
@@ -91,6 +103,8 @@ DEFAULT_HANDLERS: dict[str, Handler] = {
     "digest": digest,
     "critic": lambda s, u: {"gaps": []},
     "judge": lambda s, u: judge_all(u, "supported"),
+    "route": route_answer,
+    "answer": answer,
 }
 
 

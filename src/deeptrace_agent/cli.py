@@ -1,4 +1,4 @@
-"""Command-line interface: ``deeptrace run | resume | show | list | worker | serve``."""
+"""Command-line interface: ``deeptrace run | ask | resume | show | list | thread | worker | serve``."""
 
 from __future__ import annotations
 
@@ -36,6 +36,8 @@ def _budget_from_args(args: argparse.Namespace) -> Budget:
 def _report(result: RunResult, out_dir: Path) -> int:
     state = result.state
     usage = state.usage
+    if state.route:
+        print(f"understood as: {state.route['question']}  ({state.route['decision']}: {state.route['reason']})")
     print(
         f"\nrun {result.run_id}: {result.status} · {len(state.plan.tasks)} tasks · "
         f"{len(state.evidence)} evidence · {usage.get('tokens', 0):,.0f} tokens · "
@@ -94,6 +96,14 @@ def _list(store: RunStore) -> int:
     return 0
 
 
+def _thread(store: RunStore, run_id: str) -> int:
+    first = store.load(run_id).thread_id or run_id
+    for i, run in enumerate(store.thread(first), start=1):
+        route = (store.load(run.id).route or {}).get("decision", "report")
+        print(f"{i:>2}. {run.id}  {run.status:<8} {route:<7} {run.question[:70]}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     # --db is accepted both before and after the subcommand.
     common = argparse.ArgumentParser(add_help=False)
@@ -129,6 +139,11 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--webhook", help="POST the finished report to this URL (with an Idempotency-Key header)")
     add_run_options(run)
 
+    ask = sub.add_parser("ask", help="ask a follow-up question in a finished run's conversation", parents=[common])
+    ask.add_argument("run_id", help="any run of the conversation; the follow-up continues its latest turn")
+    ask.add_argument("question")
+    add_run_options(ask)
+
     resume = sub.add_parser("resume", help="continue an interrupted or halted run", parents=[common])
     resume.add_argument("run_id")
     add_run_options(resume)
@@ -137,6 +152,9 @@ def build_parser() -> argparse.ArgumentParser:
     show.add_argument("run_id")
 
     sub.add_parser("list", help="list recent runs", parents=[common])
+
+    thread = sub.add_parser("thread", help="list the turns of a conversation", parents=[common])
+    thread.add_argument("run_id")
 
     db = sub.add_parser("db", help="database schema (Alembic migrations)", parents=[common])
     db.add_argument("action", choices=("upgrade", "current"))
@@ -220,6 +238,8 @@ async def _run(args: argparse.Namespace, store: RunStore) -> int:
     try:
         if args.command == "run":
             result = await runtime.start(args.question, approve_plan=args.approve_plan, deliver_to=args.webhook)
+        elif args.command == "ask":
+            result = await runtime.followup(store.latest_turn(args.run_id), args.question)
         else:
             if store.load(args.run_id).status in ("paused", "halted"):
                 runtime.unpause(args.run_id)
@@ -316,6 +336,8 @@ def main(argv: list[str] | None = None) -> int:
             return _show(store, args.run_id)
         if args.command == "list":
             return _list(store)
+        if args.command == "thread":
+            return _thread(store, args.run_id)
         if args.command in ("cancel", "pause", "approve", "resolve"):
             return _control(args, store)
         if args.command == "db":
